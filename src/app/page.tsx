@@ -40,8 +40,11 @@ export default function LandingPage() {
         </span>
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
+          <Button variant="ghost" size="sm" asChild>
+            <Link href="/login">Log in</Link>
+          </Button>
           <Button variant="outline" size="sm" asChild>
-            <Link href="/design-system">Design system</Link>
+            <Link href="/demo">Try the demo</Link>
           </Button>
         </div>
       </header>
@@ -64,8 +67,8 @@ export default function LandingPage() {
 
             <div className="mt-6 flex flex-wrap gap-2">
               <Button size="lg" asChild>
-                <Link href="/home">
-                  Try the demo
+                <Link href="/signup">
+                  Create your twin
                   <ArrowRight aria-hidden />
                 </Link>
               </Button>

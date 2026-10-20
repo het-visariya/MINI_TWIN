@@ -8,16 +8,7 @@ import { AskAboutThis } from "@/components/patterns/ask-about-this";
 import { StatusChip } from "@/components/patterns/status-chip";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import type { Status } from "@/lib/domain/types";
-
-type Subject = {
-  id: string;
-  name: string;
-  credits: number;
-  difficulty: "high" | "medium" | "low";
-  attendance: { attended: number; held: number; required: number };
-  grade: { expected: string; internal: number; internalMax: number };
-};
+import type { Status, Subject } from "@/lib/domain/types";
 
 /**
  * The bunk budget: how many classes can still be missed, and how many are
@@ -25,6 +16,13 @@ type Subject = {
  * the requirement they entered — stated plainly, with no judgement attached.
  */
 function bunkBudget({ attended, held, required }: Subject["attendance"]) {
+  /* A subject added during setup has no classes yet. Dividing by zero here
+     would put "NaN% attendance" on the card, so the unknown case is answered
+     as unknown instead. */
+  if (held === 0) {
+    return { percent: null, canMiss: null, needed: null, band: "ok" as Status };
+  }
+
   const percent = (attended / held) * 100;
   const ratio = required / 100;
 
@@ -60,16 +58,25 @@ export function AttendanceRow({ subject }: { subject: Subject }) {
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="text-sm font-medium">{subject.name}</h3>
             <StatusChip kind={band}>
-              {percent.toFixed(0)}% attendance
+              {percent === null ? "No classes yet" : `${percent.toFixed(0)}% attendance`}
             </StatusChip>
           </div>
           <p className="text-muted-foreground mt-1 text-xs">
-            {subject.credits} credits · {subject.difficulty} difficulty · internals{" "}
-            <span className="tabular text-foreground">
-              {subject.grade.internal}/{subject.grade.internalMax}
-            </span>{" "}
-            · expected{" "}
-            <span className="text-foreground font-medium">{subject.grade.expected}</span>
+            {subject.credits} credits · {subject.difficulty} difficulty
+            {/* Marks are absent until the user records them. Nothing is
+                estimated on their behalf. */}
+            {subject.grade && (
+              <>
+                {" "}· internals{" "}
+                <span className="tabular text-foreground">
+                  {subject.grade.internal}/{subject.grade.internalMax}
+                </span>{" "}
+                · expected{" "}
+                <span className="text-foreground font-medium">
+                  {subject.grade.expected}
+                </span>
+              </>
+            )}
           </p>
         </div>
 
@@ -97,9 +104,13 @@ export function AttendanceRow({ subject }: { subject: Subject }) {
       </div>
 
       <Progress
-        value={percent}
+        value={percent ?? 0}
         className="mt-3"
-        aria-label={`${subject.name} attendance: ${percent.toFixed(0)} percent, requirement ${subject.attendance.required} percent`}
+        aria-label={
+          percent === null
+            ? `${subject.name}: no classes recorded yet`
+            : `${subject.name} attendance: ${percent.toFixed(0)} percent, requirement ${subject.attendance.required} percent`
+        }
       />
 
       <dl className="text-muted-foreground mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-4">
@@ -115,12 +126,12 @@ export function AttendanceRow({ subject }: { subject: Subject }) {
         </div>
         <div className="flex justify-between gap-2">
           <dt>Can still miss</dt>
-          <dd className="tabular text-foreground">{canMiss}</dd>
+          <dd className="tabular text-foreground">{canMiss ?? "—"}</dd>
         </div>
         <div className="flex justify-between gap-2">
           <dt>To recover</dt>
           <dd className="tabular text-foreground">
-            {needed === 0 ? "—" : `${needed} classes`}
+            {needed === null || needed === 0 ? "—" : `${needed} classes`}
           </dd>
         </div>
       </dl>

@@ -13,7 +13,7 @@ import { TwinHero } from "@/components/twin/twin-hero";
 import { TwinStateSync } from "@/components/twin/twin-state-sync";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { repo } from "@/lib/data/repo";
+import { getRepo } from "@/lib/data/repo";
 
 export const metadata: Metadata = { title: "Twin home" };
 
@@ -40,7 +40,7 @@ export default function HomePage() {
 }
 
 async function HomeContent() {
-  const snapshot = await repo.getTwinSnapshot();
+  const snapshot = await (await getRepo()).getTwinSnapshot();
 
   return (
     <div className="space-y-6">

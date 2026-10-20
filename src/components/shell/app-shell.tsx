@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { AccountMenu } from "@/components/shell/account-menu";
+import { DemoBanner } from "@/components/shell/demo-banner";
 import { MobileNav } from "@/components/shell/mobile-nav";
 import { QuickAdd } from "@/components/shell/quick-add";
 import { SidebarNav } from "@/components/shell/sidebar-nav";
@@ -18,17 +20,22 @@ import type { TwinMessage, TwinState } from "@/lib/domain/types";
 export function AppShell({
   children,
   conversation,
+  demo = false,
   twinState = "balanced",
   twinIntensity = 0.5,
 }: {
   children: React.ReactNode;
   conversation: TwinMessage[];
+  /** Sample data: flagged on every screen so it is never mistaken for yours. */
+  demo?: boolean;
   twinState?: TwinState;
   twinIntensity?: number;
 }) {
   return (
     <TwinStateProvider initialState={twinState} initialIntensity={twinIntensity}>
       <div className="flex min-h-dvh flex-col">
+        {demo && <DemoBanner />}
+
         <header className="bg-background/85 sticky top-0 z-20 border-b backdrop-blur">
           <div className="mx-auto flex h-14 w-full max-w-[100rem] items-center gap-3 px-4">
             <Link href="/home" className="flex items-center gap-2">
@@ -42,6 +49,7 @@ export function AppShell({
               <QuickAdd />
               <ThemeToggle />
               <TwinDock messages={conversation} />
+              <AccountMenu demo={demo} />
             </div>
           </div>
         </header>

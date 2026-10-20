@@ -7,12 +7,14 @@ import { PageHeader } from "@/components/patterns/page-header";
 import { FuturePaths } from "@/components/regreter/future-paths";
 import { ToneSetting } from "@/components/regreter/tone-setting";
 import { Button } from "@/components/ui/button";
-import { repo } from "@/lib/data/repo";
+import { getRepo } from "@/lib/data/repo";
 
 export const metadata: Metadata = { title: "Regreter & future self" };
 
 export default async function RegreterPage() {
-  const { consequence, receipts, plans, futurePaths } = await repo.getRegreter();
+  const { consequence, receipts, plans, futurePaths } = await (
+    await getRepo()
+  ).getRegreter();
 
   return (
     <div className="space-y-6">

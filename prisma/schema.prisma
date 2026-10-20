@@ -1,0 +1,567 @@
+// Digital Twin — data model.
+//
+// Two rules hold across this entire file:
+//
+//  1. Every domain row carries `userId` and cascades on user delete, so
+//     "export all my data" and "delete my account" are complete by
+//     construction rather than by remembering to add a table to a list.
+//  2. Nothing here stores an inference about the user that they cannot see.
+//     Traits are explicit answers; derived signals are recomputed from the
+//     user's own rows and shown back to them in Settings.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/* -------------------------------------------------------------------------- */
+/*                              Better Auth core                              */
+/* -------------------------------------------------------------------------- */
+
+model User {
+  id            String    @id
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+  profile  Profile?
+
+  subjects    Subject[]
+  attendance  AttendanceRecord[]
+  commitments Commitment[]
+  tasks       Task[]
+  goals       Goal[]
+  habits      Habit[]
+  habitLogs   HabitLog[]
+  workouts    WorkoutLog[]
+  meals       MealLog[]
+  weights     WeightLog[]
+  sleep       SleepLog[]
+  water       WaterLog[]
+  moods       MoodCheckin[]
+  expenses    Expense[]
+  investments Investment[]
+  consentLog  AiConsentLog[]
+  messages    TwinMessage[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  /// Argon2 hash for the credentials provider. Never a plaintext password.
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+/// Better Auth's rate-limit counters. Kept in the database rather than in
+/// memory so the limit on sign-in and password-reset attempts still holds when
+/// more than one instance is serving requests.
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@map("rate_limit")
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   Profile                                  */
+/* -------------------------------------------------------------------------- */
+
+enum LifeStage {
+  SCHOOL
+  COLLEGE
+  OTHER
+}
+
+enum RegreterTone {
+  GENTLE
+  BALANCED
+  DIRECT
+  NO_MERCY
+}
+
+enum Sex {
+  FEMALE
+  MALE
+  PREFER_NOT_TO_SAY
+}
+
+/// Who the user is, and the switches that change how the twin behaves.
+model Profile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Captured before the account exists, as the age gate. Never optional:
+  /// several safety rules (no weight-loss targets under 20, BMI-for-age
+  /// rather than adult BMI) depend on knowing it.
+  dob DateTime
+
+  /// Only collected because BMI-for-age percentiles need it under 20.
+  sex       Sex?
+  lifeStage LifeStage?
+
+  /// Slug of the furthest step reached, so the wizard resumes where it left.
+  onboardingStep        String    @default("about-you")
+  onboardingCompletedAt DateTime?
+
+  regreterTone RegreterTone @default(BALANCED)
+
+  /// Stated preferences and habits from onboarding and Settings: chronotype,
+  /// study block length, gym days, diet type, allergies, motivation style.
+  /// Read by the twin through the getUserTraits tool, never dumped into a
+  /// prompt wholesale.
+  traits Json @default("{}")
+
+  /// Shows the "talk to a doctor" note and suppresses targets.
+  hasMedicalCondition Boolean @default(false)
+
+  /// AI consent. Absent `aiConsentAt`, the twin asks before its first call.
+  aiConsentAt         DateTime?
+  allowHealthDataToAi Boolean   @default(false)
+  allowMoneyDataToAi  Boolean   @default(false)
+
+  /// Jarvis preferences.
+  jarvisShortcut      String  @default("mod+j")
+  wakePhraseEnabled   Boolean @default(false)
+  voiceRepliesEnabled Boolean @default(false)
+
+  /// Reminder guardrails.
+  quietHoursStart  Int @default(22)
+  quietHoursEnd    Int @default(7)
+  dailyReminderCap Int @default(4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("profile")
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   Domain                                   */
+/* -------------------------------------------------------------------------- */
+
+/// Mirrors the `Domain` union in src/lib/domain/types.ts.
+enum LifeDomain {
+  ACADEMIC
+  PRODUCTIVITY
+  HEALTH
+  NUTRITION
+  FINANCE
+  CAREER
+  GOALS
+  ROUTINE
+}
+
+enum Flexibility {
+  FIXED
+  SHIFTABLE
+  FLEXIBLE
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  NORMAL
+  LOW
+}
+
+model Subject {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name    String
+  code    String?
+  credits Int     @default(3)
+  /// 1–5, the user's own rating. Feeds task ranking, not a grade prediction.
+  difficulty Int  @default(3)
+  importance Int  @default(3)
+
+  /// Attendance is kept as a running count as well as a log, so the bunk
+  /// budget can be answered without reading every record.
+  classesHeld      Int @default(0)
+  classesAttended  Int @default(0)
+  minAttendancePct Int @default(75)
+
+  attendance AttendanceRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("subject")
+}
+
+model AttendanceRecord {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  date    DateTime @db.Date
+  present Boolean
+
+  createdAt DateTime @default(now())
+
+  @@unique([subjectId, date])
+  @@index([userId, date])
+  @@map("attendance_record")
+}
+
+/// Classes, assignments, workouts, study sessions and personal blocks are all
+/// Commitments. One scheduling model is what lets the twin reason about time
+/// across domains instead of becoming sixteen separate apps.
+model Commitment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  domain      LifeDomain
+  minutes     Int
+  start       DateTime?
+  flexibility Flexibility @default(FLEXIBLE)
+  priority    Priority    @default(NORMAL)
+  /// Commitment ids that must happen first.
+  dependsOn   String[]
+  /// Why this exists, shown to the user. Never inferred silently.
+  source      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, start])
+  @@map("commitment")
+}
+
+model Task {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title           String
+  domain          LifeDomain
+  due             DateTime?
+  estimateMinutes Int        @default(30)
+  progress        Int        @default(0)
+  priority        Priority   @default(NORMAL)
+  /// The ranking explanation. A ranked task always answers "Why is this here?".
+  why             String?
+  done            Boolean    @default(false)
+  completedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, done, due])
+  @@map("task")
+}
+
+model Goal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  domain      LifeDomain
+  targetDate  DateTime?
+  progress    Int        @default(0)
+  /// Hours a week this goal asks for. Feeds the goal conflict detector.
+  weeklyHours Float      @default(0)
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("goal")
+}
+
+model Habit {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name          String
+  /// Target repetitions per week.
+  timesPerWeek  Int    @default(7)
+  domain        LifeDomain @default(ROUTINE)
+
+  logs HabitLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("habit")
+}
+
+model HabitLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  habitId String
+  habit   Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+  done Boolean  @default(true)
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+  @@map("habit_log")
+}
+
+/* --------------------------------- health --------------------------------- */
+
+model WorkoutLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date     DateTime @db.Date
+  exercise String
+  /// Array of { reps, weightKg }. Kept as JSON because set counts vary and
+  /// nothing queries inside a set.
+  sets     Json     @default("[]")
+  /// Denormalised so weekly volume does not require summing JSON.
+  volumeKg Float    @default(0)
+  notes    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("workout_log")
+}
+
+model WeightLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date     DateTime @db.Date
+  weightKg Float
+  heightCm Float?
+
+  @@unique([userId, date])
+  @@map("weight_log")
+}
+
+model SleepLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date    DateTime @db.Date
+  /// Minutes, so no float rounding on "7h 20m".
+  minutes Int
+  quality Int?
+
+  @@unique([userId, date])
+  @@map("sleep_log")
+}
+
+model WaterLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+  ml   Int
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("water_log")
+}
+
+model MoodCheckin {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+  /// 1–5, from the five-face picker. Never used to drive the twin's state.
+  mood   Int
+  energy Int
+
+  @@unique([userId, date])
+  @@map("mood_checkin")
+}
+
+/* -------------------------------- nutrition ------------------------------- */
+
+model MealLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date     DateTime @db.Date
+  mealType String   @default("snack")
+  /// Parsed items: { name, servings, kcal, proteinG, carbsG, fatG, matched }.
+  items    Json     @default("[]")
+  kcal     Int      @default(0)
+  proteinG Float    @default(0)
+  carbsG   Float    @default(0)
+  fatG     Float    @default(0)
+  /// True when any item fell back to an estimate rather than a table match.
+  estimated Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("meal_log")
+}
+
+/* --------------------------------- money ---------------------------------- */
+
+model Expense {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date     DateTime @db.Date
+  category String
+  /// Paise, not rupees. Money is never stored as a float.
+  amountMinor Int
+  note        String?
+  /// Set for subscriptions; drives the renewal list.
+  renewsOn    DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("expense")
+}
+
+model Investment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// stock | mutual_fund | fd | sip
+  kind          String
+  name          String
+  symbol        String?
+  units         Float   @default(0)
+  investedMinor Int     @default(0)
+  /// Manual unless a market data key is configured.
+  currentMinor  Int     @default(0)
+  asOf          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("investment")
+}
+
+/* ---------------------------------- twin ---------------------------------- */
+
+enum MessageAuthor {
+  USER
+  TWIN
+}
+
+model TwinMessage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Conversations are grouped so /twin can list and search them.
+  threadId String
+  author   MessageAuthor
+  text     String
+
+  /// Which of the user's own numbers the answer used.
+  sources     Json?
+  /// A plan the user may apply, edit or dismiss. Never applied by being shown.
+  proposal    Json?
+  suggestions String[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, threadId, createdAt])
+  @@map("twin_message")
+}
+
+/// Every request that sent the user's data to the AI provider. The user can
+/// read this back in Settings; nothing reaches a model without a row here.
+model AiConsentLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Which feature asked: twin_chat, jarvis, career_roadmap, …
+  feature String
+  /// Plain-language data categories sent, as shown in the consent sheet.
+  categories String[]
+  /// What was sent, summarised — not the payload itself.
+  summary    String
+  model      String?
+  granted    Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("ai_consent_log")
+}

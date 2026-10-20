@@ -9,13 +9,13 @@ import { FocusTimer } from "@/components/productivity/focus-timer";
 import { TaskRow } from "@/components/productivity/task-row";
 import { Progress } from "@/components/ui/progress";
 import { GridSkeleton } from "@/components/patterns/states";
-import { repo } from "@/lib/data/repo";
+import { getRepo } from "@/lib/data/repo";
 
 export const metadata: Metadata = { title: "Productivity" };
 
 async function ProductivityContent() {
   const { tasks, habits, heatmap, consistency, baseline } =
-    await repo.getProductivity();
+    await (await getRepo()).getProductivity();
 
   return (
     <div className="space-y-6">

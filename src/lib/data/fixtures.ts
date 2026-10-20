@@ -17,6 +17,10 @@ import type {
   Task,
   TimeBudget,
   TwinMessage,
+  Goal,
+  Habit,
+  Heatmap,
+  Subject,
 } from "@/lib/domain/types";
 
 const today = (hour: number, minute = 0) => {
@@ -324,7 +328,7 @@ export const createTasks = (): Task[] => [
   },
 ];
 
-export const habits = [
+export const habits: Habit[] = [
   { id: "h-1", label: "Sleep before 00:30", days28: 19, domain: "routine" as const },
   { id: "h-2", label: "Study session logged", days28: 11, domain: "academic" as const },
   { id: "h-3", label: "Workout", days28: 11, domain: "health" as const },
@@ -332,7 +336,7 @@ export const habits = [
 ];
 
 /** Weekly intensity grid: 7 days × the domains shown on the life heatmap. */
-export const heatmap = {
+export const heatmap: Heatmap = {
   days: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
   rows: [
     { domain: "academic" as const, label: "Study", values: [3, 2, 4, 1, 2, 0, 1] },
@@ -345,7 +349,7 @@ export const heatmap = {
 
 /* --------------------------------- academic ------------------------------- */
 
-export const subjects = [
+export const subjects: Subject[] = [
   {
     id: "sub-dbms",
     name: "DBMS",
@@ -432,7 +436,7 @@ export const deadlineCascade = [
 
 /* ---------------------------------- goals --------------------------------- */
 
-export const createGoals = () => [
+export const createGoals = (): Goal[] => [
   {
     id: "g-1",
     title: "Clear internals with 8.0+ CGPA",

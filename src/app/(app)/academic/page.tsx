@@ -8,12 +8,12 @@ import { CgpaWhatIf } from "@/components/academic/cgpa-what-if";
 import { PageHeader } from "@/components/patterns/page-header";
 import { ScoreCard } from "@/components/patterns/score-card";
 import { GridSkeleton } from "@/components/patterns/states";
-import { repo } from "@/lib/data/repo";
+import { getRepo } from "@/lib/data/repo";
 
 export const metadata: Metadata = { title: "Academic" };
 
 async function AcademicContent() {
-  const { subjects, risk, cgpa, cascade } = await repo.getAcademic();
+  const { subjects, risk, cgpa, cascade } = await (await getRepo()).getAcademic();
 
   return (
     <div className="space-y-6">

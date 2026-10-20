@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/patterns/page-header";
 import { TimeBudgetBar } from "@/components/patterns/time-budget-bar";
 import { Progress } from "@/components/ui/progress";
 import { GridSkeleton } from "@/components/patterns/states";
-import { repo } from "@/lib/data/repo";
+import { getRepo } from "@/lib/data/repo";
 
 export const metadata: Metadata = { title: "Goals & planning" };
 
@@ -21,7 +21,7 @@ const buckets = [
 
 async function GoalsContent() {
   const { goals, capacity, timeBudget, conflicts, recovery } =
-    await repo.getPlanning();
+    await (await getRepo()).getPlanning();
 
   const shortfall = capacity.requestedHours - capacity.availableHours;
 
@@ -54,10 +54,12 @@ async function GoalsContent() {
                       <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                         <span className="inline-flex items-center gap-1">
                           <CalendarClock className="size-3.5" aria-hidden />
-                          {new Date(goal.due).toLocaleDateString(undefined, {
-                            day: "numeric",
-                            month: "short",
-                          })}
+                          {goal.due
+                            ? new Date(goal.due).toLocaleDateString(undefined, {
+                                day: "numeric",
+                                month: "short",
+                              })
+                            : "No deadline"}
                         </span>
                         {goal.needsHoursPerWeek > 0 && (
                           <span className="tabular">

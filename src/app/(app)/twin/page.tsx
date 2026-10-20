@@ -6,7 +6,7 @@ import { ChatThread, TypingIndicator } from "@/components/patterns/chat-thread";
 import { PageHeader } from "@/components/patterns/page-header";
 import { CardSkeleton } from "@/components/patterns/states";
 import { TwinComposer } from "@/components/twin/twin-composer";
-import { repo } from "@/lib/data/repo";
+import { getRepo } from "@/lib/data/repo";
 
 export const metadata: Metadata = { title: "Ask my twin" };
 
@@ -49,7 +49,7 @@ async function Conversation({
   searchParams: Promise<{ about?: string }>;
 }) {
   const [messages, params] = await Promise.all([
-    repo.getConversation(),
+    (await getRepo()).getConversation(),
     searchParams,
   ]);
 
