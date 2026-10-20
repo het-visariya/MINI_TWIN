@@ -1,5 +1,9 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError } from "better-auth/api";
+
+import { checkAge } from "@/lib/auth/age";
+import { DOB_COOKIE, unsign } from "@/lib/auth/signed-cookie";
 
 import { getPrisma } from "@/lib/db";
 import {
@@ -91,7 +95,56 @@ function create() {
     advanced: {
       cookiePrefix: "dt",
     },
+
+    /*
+     * The age gate, enforced at the point of creation.
+     *
+     * The signup form calls our own `createAccount` action, which checks the
+     * gate — but `/api/auth/[...all]` also exposes Better Auth's own
+     * `/sign-up/email` and the Google callback, and a POST straight to those
+     * would skip the action entirely. So the check lives here as well, where
+     * every path that can create a user has to pass through it.
+     *
+     * It fails closed: no readable, valid date-of-birth cookie means no user.
+     */
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            const verdict = await ageGateVerdict();
+
+            if (verdict !== "allowed") {
+              throw new APIError("BAD_REQUEST", {
+                message:
+                  verdict === "blocked"
+                    ? "This account cannot be created."
+                    : "Start again from your date of birth — that step has expired.",
+              });
+            }
+
+            return { data: user };
+          },
+        },
+      },
+    },
   });
+}
+
+/**
+ * Reads the gate's signed cookie. Returns "missing" rather than throwing when
+ * there is no request context to read, so the caller fails closed either way.
+ */
+async function ageGateVerdict(): Promise<"allowed" | "blocked" | "missing"> {
+  try {
+    const { cookies } = await import("next/headers");
+    const store = await cookies();
+    const value = unsign(store.get(DOB_COOKIE)?.value);
+
+    if (!value) return "missing";
+    return checkAge(value).outcome === "allowed" ? "allowed" : "blocked";
+  } catch {
+    return "missing";
+  }
 }
 
 export function getAuth() {
