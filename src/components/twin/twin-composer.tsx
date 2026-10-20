@@ -60,7 +60,7 @@ export function TwinComposer({
           aria-label="Message your twin"
           className="min-h-[3.25rem] resize-none"
         />
-        <Button type="submit" variant="ai" size="icon-lg" aria-label="Send message">
+        <Button type="submit" variant="primary" size="icon-lg" aria-label="Send message">
           <Send aria-hidden />
         </Button>
       </form>

@@ -13,7 +13,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     <nav aria-label="Modules" className="flex flex-col gap-5">
       {navGroups.map((group) => (
         <div key={group.label}>
-          <p className="text-muted-foreground px-2 pb-1.5 text-2xs font-semibold tracking-wide uppercase">
+          <p className="text-muted-foreground px-2 pb-1.5 text-2xs font-medium tracking-wide uppercase">
             {group.label}
           </p>
           <ul className="space-y-0.5">

@@ -34,8 +34,8 @@ export function NumberFlow({
   useEffect(() => {
     if (reduced) {
       previous.current = value;
-      setDisplay(value);
-      return;
+      const id = requestAnimationFrame(() => setDisplay(value));
+      return () => cancelAnimationFrame(id);
     }
 
     const controls = animate(previous.current, value, {

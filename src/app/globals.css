@@ -6,8 +6,11 @@
 
 /* ---------------------------------------------------------------------------
    Digital Twin design tokens.
-   Raw colour values live here and in src/lib/design/tokens.ts (for canvas /
-   chart code that cannot read CSS variables). Nowhere else.
+
+   Monochrome + one accent. Colour means "you can act here" or "this is the
+   status" — never decoration. Raw colour values live here and in
+   src/lib/design/tokens.ts (for canvas / chart code that cannot read CSS
+   custom properties). Nowhere else.
    --------------------------------------------------------------------------- */
 
 @theme inline {
@@ -17,30 +20,31 @@
   --font-mono: var(--font-mono);
   --font-heading: var(--font-sans);
 
-  /* shadcn surface + control tokens */
+  /* surfaces */
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
+
+  /* The single accent. --primary is an alias so shadcn primitives inherit it. */
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-muted: var(--accent-muted);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
   --color-input: var(--input);
   --color-ring: var(--ring);
-
-  /* the single interaction/AI accent */
-  --color-ai: var(--ai);
-  --color-ai-foreground: var(--ai-foreground);
-  --color-ai-muted: var(--ai-muted);
 
   /* status — always paired with an icon + label, never colour alone */
   --color-ok: var(--ok);
@@ -49,21 +53,12 @@
   --color-overdue: var(--overdue);
   --color-simulation: var(--simulation);
 
-  /* domain data hues — charts, pulse rings and module icons only */
-  --color-domain-academic: var(--domain-academic);
-  --color-domain-productivity: var(--domain-productivity);
-  --color-domain-health: var(--domain-health);
-  --color-domain-nutrition: var(--domain-nutrition);
-  --color-domain-finance: var(--domain-finance);
-  --color-domain-career: var(--domain-career);
-  --color-domain-goals: var(--domain-goals);
-  --color-domain-routine: var(--domain-routine);
-
-  --color-chart-1: var(--domain-academic);
-  --color-chart-2: var(--domain-productivity);
-  --color-chart-3: var(--domain-health);
-  --color-chart-4: var(--domain-finance);
-  --color-chart-5: var(--domain-career);
+  /* Charts: the accent is "you", greys are everything compared against you.
+     Never more than one accent series in a single chart. */
+  --color-chart-you: var(--accent);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
 
   /* sidebar */
   --color-sidebar: var(--sidebar);
@@ -75,157 +70,151 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* shape — 4px scale, radii 8/12/16/24 */
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  /* shape — 4px grid. 8 inputs / 12 cards / 999 pills. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-3xl: 24px;
+  --radius-4xl: 28px;
 
-  /* type scale */
+  /* type scale — 12 / 14 / 16 / 20 / 28 / 40 / 56 */
   --text-2xs: 0.75rem;
-  --text-2xs--line-height: 1.1rem;
-  --text-xs: 0.8125rem;
-  --text-xs--line-height: 1.25rem;
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1.125rem;
   --text-sm: 0.875rem;
   --text-sm--line-height: 1.375rem;
   --text-base: 1rem;
   --text-base--line-height: 1.5rem;
   --text-lg: 1.25rem;
   --text-lg--line-height: 1.75rem;
-  --text-xl: 1.5rem;
-  --text-xl--line-height: 2rem;
-  --text-2xl: 1.875rem;
-  --text-2xl--line-height: 2.25rem;
-  --text-3xl: 2.375rem;
-  --text-3xl--line-height: 2.75rem;
+  --text-xl: 1.75rem;
+  --text-xl--line-height: 2.125rem;
+  --text-2xl: 2.5rem;
+  --text-2xl--line-height: 2.75rem;
+  --text-3xl: 3.5rem;
+  --text-3xl--line-height: 3.75rem;
 
-  /* elevation — exactly two levels */
+  /* elevation — light mode only; dark mode uses hairlines, never shadows */
   --shadow-card: var(--elevation-card);
   --shadow-overlay: var(--elevation-overlay);
 
   /* motion — see src/components/motion/presets.ts for the JS mirror */
   --ease-twin: cubic-bezier(0.22, 1, 0.36, 1);
-  --duration-instant: 100ms;
-  --duration-fast: 180ms;
-  --duration-base: 280ms;
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --duration-fast: 150ms;
+  --duration-base: 250ms;
   --duration-slow: 450ms;
+
+  --container-content: 1200px;
 }
 
 :root {
-  --radius: 0.75rem;
+  --radius: 12px;
 
-  --background: #faf5ff;
-  --foreground: #1e1b4b;
-  --card: #ffffff;
-  --card-foreground: #1e1b4b;
-  --popover: #ffffff;
-  --popover-foreground: #1e1b4b;
+  --background: #FAFAF8;
+  --foreground: #0A0A0A;
+  --surface-1: #FFFFFF;
+  --surface-2: #F2F2EF;
+  --card: #FFFFFF;
+  --card-foreground: #0A0A0A;
+  --popover: #FFFFFF;
+  --popover-foreground: #0A0A0A;
 
-  --primary: #7c3aed;
-  --primary-foreground: #ffffff;
-  --secondary: #f3eefe;
-  --secondary-foreground: #4c1d95;
-  --muted: #eceef9;
-  --muted-foreground: #475569;
-  --accent: #ede9fe;
-  --accent-foreground: #4c1d95;
+  --accent: #587400;
+  --accent-foreground: #FFFFFF;
+  --accent-muted: #EDF2DB;
+  --primary: #587400;
+  --primary-foreground: #FFFFFF;
 
-  --ai: #0891b2;
-  --ai-foreground: #ffffff;
-  --ai-muted: #e0f6fb;
+  --secondary: #F2F2EF;
+  --secondary-foreground: #0A0A0A;
+  --muted: #F2F2EF;
+  --muted-foreground: #5F5F5A;
 
-  --destructive: #dc2626;
-  --destructive-foreground: #ffffff;
-  --border: #ddd6fe;
-  --border-strong: #c4b5fd;
-  --input: #ddd6fe;
-  --ring: #7c3aed;
+  --destructive: #C42B30;
+  --destructive-foreground: #FFFFFF;
+  --border: #E6E6E1;
+  --border-strong: #D2D2CC;
+  --input: #E6E6E1;
+  --ring: #587400;
 
-  --ok: #15803d;
-  --attention: #b45309;
-  --risk: #dc2626;
-  --overdue: #be123c;
-  --simulation: #0e7490;
+  --ok: #2F7D3A;
+  --attention: #9A6300;
+  --risk: #C42B30;
+  --overdue: #C42B30;
+  --simulation: #6B6B66;
 
-  --domain-academic: #4f46e5;
-  --domain-productivity: #0d9488;
-  --domain-health: #0891b2;
-  --domain-nutrition: #059669;
-  --domain-finance: #0284c7;
-  --domain-career: #d97706;
-  --domain-goals: #7c3aed;
-  --domain-routine: #64748b;
+  --chart-1: #0A0A0A;
+  --chart-2: #5F5F5A;
+  --chart-3: #B4B4AE;
 
-  --sidebar: #f6f1fe;
-  --sidebar-foreground: #1e1b4b;
-  --sidebar-primary: #7c3aed;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ede9fe;
-  --sidebar-accent-foreground: #4c1d95;
-  --sidebar-border: #ddd6fe;
-  --sidebar-ring: #7c3aed;
+  --sidebar: #F2F2EF;
+  --sidebar-foreground: #0A0A0A;
+  --sidebar-primary: #587400;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #E6E6E1;
+  --sidebar-accent-foreground: #0A0A0A;
+  --sidebar-border: #E6E6E1;
+  --sidebar-ring: #587400;
 
-  --elevation-card: 0 1px 2px 0 rgb(30 27 75 / 0.05), 0 1px 3px 0 rgb(30 27 75 / 0.06);
-  --elevation-overlay: 0 8px 30px -8px rgb(30 27 75 / 0.22), 0 2px 8px -2px rgb(30 27 75 / 0.12);
+  --elevation-card: 0 1px 2px 0 rgb(10 10 10 / 0.04);
+  --elevation-overlay:
+    0 8px 30px -8px rgb(10 10 10 / 0.16), 0 2px 8px -2px rgb(10 10 10 / 0.08);
 }
 
 .dark {
-  --background: #0f0f23;
-  --foreground: #e2e8f0;
-  --card: #1a1830;
-  --card-foreground: #e2e8f0;
-  --popover: #1e1c35;
-  --popover-foreground: #e2e8f0;
+  --background: #000000;
+  --foreground: #EDEDEA;
+  --surface-1: #0B0B0B;
+  --surface-2: #141414;
+  --card: #0B0B0B;
+  --card-foreground: #EDEDEA;
+  --popover: #141414;
+  --popover-foreground: #EDEDEA;
 
-  --primary: #8b5cf6;
-  --primary-foreground: #0f0f23;
-  --secondary: #27273b;
-  --secondary-foreground: #e2e8f0;
-  --muted: #27273b;
-  --muted-foreground: #94a3b8;
-  --accent: #2a2a46;
-  --accent-foreground: #e2e8f0;
+  --accent: #D4F25A;
+  --accent-foreground: #0A0A0A;
+  --accent-muted: #1C2010;
+  --primary: #D4F25A;
+  --primary-foreground: #0A0A0A;
 
-  --ai: #22d3ee;
-  --ai-foreground: #0f0f23;
-  --ai-muted: #14303c;
+  --secondary: #141414;
+  --secondary-foreground: #EDEDEA;
+  --muted: #141414;
+  --muted-foreground: #8A8A85;
 
-  --destructive: #ef4444;
-  --destructive-foreground: #0f0f23;
-  --border: #302c52;
-  --border-strong: #4c1d95;
-  --input: #302c52;
-  --ring: #8b5cf6;
+  --destructive: #F2555A;
+  --destructive-foreground: #0A0A0A;
+  --border: #1F1F1F;
+  --border-strong: #2E2E2E;
+  --input: #1F1F1F;
+  --ring: #D4F25A;
 
-  --ok: #4ade80;
-  --attention: #fbbf24;
-  --risk: #f87171;
-  --overdue: #fb7185;
-  --simulation: #22d3ee;
+  --ok: #8FD694;
+  --attention: #F2B544;
+  --risk: #F2555A;
+  --overdue: #F2555A;
+  --simulation: #B8B8B2;
 
-  --domain-academic: #818cf8;
-  --domain-productivity: #2dd4bf;
-  --domain-health: #22d3ee;
-  --domain-nutrition: #34d399;
-  --domain-finance: #38bdf8;
-  --domain-career: #fbbf24;
-  --domain-goals: #a78bfa;
-  --domain-routine: #94a3b8;
+  --chart-1: #EDEDEA;
+  --chart-2: #8A8A85;
+  --chart-3: #4A4A47;
 
-  --sidebar: #15142b;
-  --sidebar-foreground: #e2e8f0;
-  --sidebar-primary: #8b5cf6;
-  --sidebar-primary-foreground: #0f0f23;
-  --sidebar-accent: #2a2a46;
-  --sidebar-accent-foreground: #e2e8f0;
-  --sidebar-border: #302c52;
-  --sidebar-ring: #8b5cf6;
+  --sidebar: #0B0B0B;
+  --sidebar-foreground: #EDEDEA;
+  --sidebar-primary: #D4F25A;
+  --sidebar-primary-foreground: #0A0A0A;
+  --sidebar-accent: #141414;
+  --sidebar-accent-foreground: #EDEDEA;
+  --sidebar-border: #1F1F1F;
+  --sidebar-ring: #D4F25A;
 
-  --elevation-card: 0 1px 2px 0 rgb(0 0 0 / 0.4);
-  --elevation-overlay: 0 12px 36px -10px rgb(0 0 0 / 0.65), 0 2px 10px -2px rgb(0 0 0 / 0.5);
+  /* No shadows in dark mode. Depth comes from the hairline border alone. */
+  --elevation-card: none;
+  --elevation-overlay: 0 16px 48px -12px rgb(0 0 0 / 0.8);
 }
 
 @layer base {
@@ -243,6 +232,14 @@
     touch-action: manipulation;
   }
 
+  /* Headings are medium weight and tight. Nothing in the product is 700. */
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-medium tracking-tight;
+  }
+
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
@@ -253,6 +250,11 @@
   [data-slot="metric"] {
     font-variant-numeric: tabular-nums;
     font-feature-settings: "tnum";
+  }
+
+  /* The visual anchor of a card: a big mono number. */
+  [data-slot="metric"] {
+    @apply font-mono tracking-tight;
   }
 
   :focus-visible {
@@ -269,6 +271,13 @@
       color-mix(in oklab, var(--simulation) 6%, transparent) 0 6px,
       transparent 6px 12px
     );
+  }
+
+  /* Max content width, used by the app shell and the landing page alike. */
+  .content-width {
+    width: 100%;
+    max-width: var(--container-content);
+    margin-inline: auto;
   }
 }
 

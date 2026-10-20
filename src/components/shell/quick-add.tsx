@@ -65,7 +65,7 @@ export function QuickAdd({ variant = "button" }: { variant?: "button" | "fab" })
         </Button>
       ) : (
         <Button
-          variant="default"
+          variant="primary"
           size="icon-lg"
           onClick={() => setOpen(true)}
           aria-label="Quick add"

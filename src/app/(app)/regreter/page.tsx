@@ -24,7 +24,7 @@ export default async function RegreterPage() {
 
       <section aria-labelledby="preview-heading" className="space-y-3">
         <div>
-          <h2 id="preview-heading" className="text-base font-semibold">
+          <h2 id="preview-heading" className="text-base font-medium">
             Regret preview
           </h2>
           <p className="text-muted-foreground text-xs">
@@ -40,7 +40,7 @@ export default async function RegreterPage() {
           <div>
             <h2
               id="receipts-heading"
-              className="flex items-center gap-2 text-base font-semibold"
+              className="flex items-center gap-2 text-base font-medium"
             >
               <Receipt className="size-4" aria-hidden />
               Cost receipts
@@ -86,7 +86,7 @@ export default async function RegreterPage() {
           >
             <h3
               id="plan3-heading"
-              className="flex items-center gap-2 text-sm font-semibold"
+              className="flex items-center gap-2 text-sm font-medium"
             >
               <Target className="size-4" aria-hidden />
               Plan in 3
@@ -103,8 +103,8 @@ export default async function RegreterPage() {
                   { term: "Obstacle", detail: plan.obstacle },
                   { term: "If-then", detail: plan.ifThen },
                 ].map((row) => (
-                  <div key={row.term} className="bg-muted/30 rounded-lg border p-2.5">
-                    <dt className="text-2xs font-semibold tracking-wide uppercase">
+                  <div key={row.term} className="bg-surface-2/60 rounded-lg border p-2.5">
+                    <dt className="text-2xs font-medium tracking-wide uppercase">
                       {row.term}
                     </dt>
                     <dd className="mt-0.5 text-xs">{row.detail}</dd>

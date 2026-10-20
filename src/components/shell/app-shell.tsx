@@ -35,7 +35,7 @@ export function AppShell({
               <span className="size-7">
                 <TwinFallback state={twinState} label="" />
               </span>
-              <span className="text-sm font-semibold tracking-tight">Digital Twin</span>
+              <span className="text-sm font-medium tracking-tight">Digital Twin</span>
             </Link>
 
             <div className="ml-auto flex items-center gap-2">

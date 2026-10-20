@@ -61,7 +61,7 @@ export function ToneSetting() {
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="tone-heading" className="text-base font-semibold">
+          <h2 id="tone-heading" className="text-base font-medium">
             How should it talk to you?
           </h2>
           <p className="text-muted-foreground mt-1 text-xs">
@@ -100,7 +100,7 @@ export function ToneSetting() {
       <blockquote
         className={cn(
           "bg-muted/40 mt-4 rounded-lg border-l-2 px-3.5 py-3 text-sm",
-          paused ? "border-muted-foreground opacity-60" : "border-primary",
+          paused ? "border-muted-foreground opacity-60" : "border-accent",
         )}
       >
         {active.sample}

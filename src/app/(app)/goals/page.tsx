@@ -39,7 +39,7 @@ async function GoalsContent() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <section aria-labelledby="goals-heading" className="space-y-3">
-          <h2 id="goals-heading" className="text-base font-semibold">
+          <h2 id="goals-heading" className="text-base font-medium">
             Active goals
           </h2>
 
@@ -87,7 +87,7 @@ async function GoalsContent() {
             aria-labelledby="detector-heading"
             className="bg-card shadow-card rounded-xl border p-4"
           >
-            <h2 id="detector-heading" className="text-base font-semibold">
+            <h2 id="detector-heading" className="text-base font-medium">
               Goal conflict detector
             </h2>
             <p className="text-muted-foreground mt-1 mb-4 text-xs">
@@ -130,7 +130,7 @@ async function GoalsContent() {
             aria-labelledby="today-budget-heading"
             className="bg-card shadow-card rounded-xl border p-4"
           >
-            <h2 id="today-budget-heading" className="mb-3 text-base font-semibold">
+            <h2 id="today-budget-heading" className="mb-3 text-base font-medium">
               Today&rsquo;s time budget
             </h2>
             <TimeBudgetBar budget={timeBudget} />
@@ -142,7 +142,7 @@ async function GoalsContent() {
         aria-labelledby="recovery-heading"
         className="bg-card shadow-card rounded-xl border p-4"
       >
-        <h2 id="recovery-heading" className="text-base font-semibold">
+        <h2 id="recovery-heading" className="text-base font-medium">
           Recovery mode
         </h2>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -152,7 +152,7 @@ async function GoalsContent() {
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {buckets.map((bucket) => (
-            <div key={bucket.key} className="bg-muted/30 rounded-lg border p-3">
+            <div key={bucket.key} className="bg-surface-2/60 rounded-lg border p-3">
               <h3 className="flex items-center gap-1.5 text-sm font-medium">
                 <bucket.icon className="size-4" aria-hidden />
                 {bucket.label}

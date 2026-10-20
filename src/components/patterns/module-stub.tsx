@@ -33,7 +33,7 @@ export function ModuleStub({
 
       <EmptyState
         title="This screen is next in line"
-        description="The design language, the shell and the shared components are in place. This module's screens are built in phase 2."
+        purpose="The design language, the shell and the shared components are in place. This module's screens are built in phase 2."
         action={
           <Button variant="outline" size="sm" asChild>
             <Link href="/home">
@@ -49,13 +49,13 @@ export function ModuleStub({
           aria-labelledby="planned-heading"
           className="bg-card shadow-card rounded-xl border p-4"
         >
-          <h2 id="planned-heading" className="text-base font-semibold">
+          <h2 id="planned-heading" className="text-base font-medium">
             What this module will hold
           </h2>
           <ul className="mt-3 space-y-2">
             {planned.map((item) => (
               <li key={item} className="flex gap-2.5 text-sm">
-                <span aria-hidden className="text-primary">
+                <span aria-hidden className="text-accent">
                   •
                 </span>
                 <span className="text-muted-foreground">{item}</span>
@@ -65,7 +65,7 @@ export function ModuleStub({
         </section>
 
         <section className="bg-card shadow-card rounded-xl border p-4">
-          <h2 className="flex items-center gap-2 text-base font-semibold">
+          <h2 className="flex items-center gap-2 text-base font-medium">
             <DomainIcon domain={domain} />
             How it connects
           </h2>

@@ -6,27 +6,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "cn";
 
 /**
- * The three states every screen must declare. Defined once so no screen ships
- * with a bare spinner or a blank panel.
+ * The states every screen must declare. Defined once so no screen ships with
+ * a bare spinner or a blank panel.
  */
 
 export function EmptyState({
   title,
-  description,
-  icon: Icon = Inbox,
+  purpose,
   action,
+  icon: Icon = Inbox,
   className,
 }: {
   title: string;
-  description: string;
+  /**
+   * What this screen is for, in one sentence. An empty state is the first
+   * thing a new user sees here, so it has to teach rather than apologise.
+   */
+  purpose: string;
+  /** The first thing they can do. Required — an empty state is never a dead end. */
+  action: React.ReactNode;
   icon?: LucideIcon;
-  action?: React.ReactNode;
   className?: string;
 }) {
   return (
     <div
       className={cn(
-        "bg-muted/30 flex flex-col items-center gap-3 rounded-xl border border-dashed p-8 text-center",
+        "bg-surface-2/60 flex flex-col items-center gap-3 rounded-xl border border-dashed p-8 text-center",
         className,
       )}
     >
@@ -35,8 +40,8 @@ export function EmptyState({
       </span>
       <div>
         <p className="text-sm font-medium">{title}</p>
-        <p className="text-muted-foreground mx-auto mt-1 max-w-sm text-xs">
-          {description}
+        <p className="text-muted-foreground mx-auto mt-1 max-w-sm text-xs leading-relaxed">
+          {purpose}
         </p>
       </div>
       {action}
@@ -68,7 +73,7 @@ export function ErrorState({
       </span>
       <div>
         <p className="text-sm font-medium">{title}</p>
-        <p className="text-muted-foreground mx-auto mt-1 max-w-sm text-xs">
+        <p className="text-muted-foreground mx-auto mt-1 max-w-sm text-xs leading-relaxed">
           {description}
         </p>
       </div>
@@ -85,12 +90,12 @@ export function ErrorState({
 /** Card-shaped placeholder that reserves the real card's height. */
 export function CardSkeleton({ lines = 3 }: { lines?: number }) {
   return (
-    <div className="bg-card shadow-card flex flex-col gap-3 rounded-xl border p-4">
+    <div className="bg-card shadow-card flex flex-col gap-3 rounded-xl border p-5">
       <div className="flex items-center gap-2.5">
-        <Skeleton className="size-8 rounded-lg" />
+        <Skeleton className="size-8 rounded-md" />
         <Skeleton className="h-4 w-24" />
       </div>
-      <Skeleton className="h-8 w-16" />
+      <Skeleton className="h-10 w-20" />
       <Skeleton className="h-2 w-full rounded-full" />
       {Array.from({ length: lines }).map((_, index) => (
         <Skeleton key={index} className="h-3 w-full last:w-2/3" />

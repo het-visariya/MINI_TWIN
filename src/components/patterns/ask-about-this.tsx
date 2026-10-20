@@ -22,7 +22,7 @@ export function AskAboutThis({
     <Tooltip>
       <TooltipTrigger asChild>
         <Button
-          variant="ai-soft"
+          variant="secondary"
           size="icon-sm"
           asChild
           className={className}

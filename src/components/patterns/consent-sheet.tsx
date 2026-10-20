@@ -47,7 +47,7 @@ export function ConsentSheet({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="text-ai size-5" aria-hidden />
+            <ShieldCheck className="text-accent size-5" aria-hidden />
             Before this is sent
           </DialogTitle>
           <DialogDescription>
@@ -75,7 +75,7 @@ export function ConsentSheet({
             Not now
           </Button>
           <Button
-            variant="ai"
+            variant="primary"
             onClick={() => {
               onApprove?.();
               setOpen(false);

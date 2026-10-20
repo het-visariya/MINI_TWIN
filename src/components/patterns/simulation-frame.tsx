@@ -26,7 +26,7 @@ export function SimulationFrame({
       aria-describedby="simulation-assumptions"
     >
       <header className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h3 className="text-sm font-semibold">{title}</h3>
+        <h3 className="text-sm font-medium">{title}</h3>
         <StatusChip kind="simulation" />
       </header>
 

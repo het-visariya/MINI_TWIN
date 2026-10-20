@@ -61,7 +61,7 @@ async function HomeContent() {
       <section aria-labelledby="pulse-heading" className="space-y-3">
         <div className="flex items-center justify-between gap-2">
           <div>
-            <h2 id="pulse-heading" className="text-base font-semibold">
+            <h2 id="pulse-heading" className="text-base font-medium">
               Twin pulse
             </h2>
             <p className="text-muted-foreground text-xs">
@@ -90,7 +90,7 @@ async function HomeContent() {
           className="bg-card shadow-card rounded-xl border p-4"
         >
           <div className="mb-4 flex items-center justify-between gap-2">
-            <h2 id="today-heading" className="text-base font-semibold">
+            <h2 id="today-heading" className="text-base font-medium">
               Today
             </h2>
             <span className="text-muted-foreground tabular text-xs">
@@ -128,7 +128,7 @@ async function HomeContent() {
             className="bg-card shadow-card rounded-xl border p-4"
           >
             <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 id="budget-heading" className="text-base font-semibold">
+              <h2 id="budget-heading" className="text-base font-medium">
                 Your day, in hours
               </h2>
               <AskAboutThis subject="my time budget" />
@@ -140,7 +140,7 @@ async function HomeContent() {
             aria-labelledby="quick-heading"
             className="bg-card shadow-card rounded-xl border p-4"
           >
-            <h2 id="quick-heading" className="text-base font-semibold">
+            <h2 id="quick-heading" className="text-base font-medium">
               Quick actions
             </h2>
             <p className="text-muted-foreground mt-1 text-xs">
@@ -158,8 +158,8 @@ async function HomeContent() {
             </div>
           </section>
 
-          <section className="border-ai/30 bg-ai/5 rounded-xl border p-4">
-            <h2 className="flex items-center gap-2 text-sm font-semibold">
+          <section className="border-accent/25 bg-accent/5 rounded-xl border p-4">
+            <h2 className="flex items-center gap-2 text-sm font-medium">
               <Clock className="size-4" aria-hidden />
               Recovery is always available
             </h2>
@@ -167,7 +167,7 @@ async function HomeContent() {
               Missed something? Recovery Mode rebuilds the day into tonight, tomorrow
               and later — without moving anything until you agree.
             </p>
-            <Button variant="ai-soft" size="sm" className="mt-3">
+            <Button variant="secondary" size="sm" className="mt-3">
               Open recovery mode
               <ArrowRight aria-hidden />
             </Button>

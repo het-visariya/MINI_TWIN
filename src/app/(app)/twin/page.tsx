@@ -56,7 +56,7 @@ async function Conversation({
   return (
     <>
       {params.about && (
-        <p className="border-ai/30 bg-ai/5 mb-6 rounded-lg border px-3.5 py-2.5 text-sm">
+        <p className="border-accent/25 bg-accent/5 mb-6 rounded-lg border px-3.5 py-2.5 text-sm">
           Starting from <span className="font-medium">{params.about}</span> — the
           screen you came from.
         </p>

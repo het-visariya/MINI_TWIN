@@ -47,7 +47,7 @@ export function FocusTimer() {
       className="bg-card shadow-card rounded-xl border p-4"
     >
       <div className="flex items-center justify-between gap-2">
-        <h2 id="focus-heading" className="text-base font-semibold">
+        <h2 id="focus-heading" className="text-base font-medium">
           Focus session
         </h2>
         <ToggleGroup
@@ -65,7 +65,7 @@ export function FocusTimer() {
       </div>
 
       <p
-        className="tabular mt-4 text-center text-3xl font-semibold"
+        className="tabular mt-4 text-center text-3xl font-medium"
         role="timer"
         aria-live="off"
       >

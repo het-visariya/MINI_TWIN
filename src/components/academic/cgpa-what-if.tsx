@@ -94,7 +94,7 @@ export function CgpaWhatIf({ simulation }: { simulation: Simulation<CgpaData> })
         <div className="bg-card/70 flex gap-6 rounded-lg border p-4">
           <div>
             <p className="text-muted-foreground text-xs">Current</p>
-            <p className="tabular mt-1 text-xl font-semibold">
+            <p className="tabular mt-1 text-xl font-medium">
               {simulation.data.current.toFixed(2)}
             </p>
           </div>
@@ -105,7 +105,7 @@ export function CgpaWhatIf({ simulation }: { simulation: Simulation<CgpaData> })
             <NumberFlow
               value={projected}
               precision={2}
-              className="text-primary mt-1 block text-xl font-semibold"
+              className="text-accent mt-1 block text-xl font-medium"
             />
           </div>
         </div>

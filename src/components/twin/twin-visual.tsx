@@ -19,9 +19,12 @@ function useCanvasAllowed(enabled: boolean) {
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
+    // Every path below defers to a frame callback: probing WebGL needs the
+    // DOM, and setting state straight from the effect body would cascade a
+    // second render on every mount.
     if (!enabled || reduced) {
-      setAllowed(false);
-      return;
+      const id = requestAnimationFrame(() => setAllowed(false));
+      return () => cancelAnimationFrame(id);
     }
 
     const evaluate = () => {
@@ -50,10 +53,13 @@ function useCanvasAllowed(enabled: boolean) {
       setAllowed(webgl && !metered && (wideEnough || pointerFine));
     };
 
-    evaluate();
+    const frame = requestAnimationFrame(evaluate);
     const media = window.matchMedia("(min-width: 768px)");
     media.addEventListener("change", evaluate);
-    return () => media.removeEventListener("change", evaluate);
+    return () => {
+      cancelAnimationFrame(frame);
+      media.removeEventListener("change", evaluate);
+    };
   }, [enabled, reduced]);
 
   return allowed;
@@ -91,16 +97,24 @@ function useFrameLoopActive(ref: React.RefObject<HTMLDivElement | null>) {
 
 export function TwinVisual({
   size = "hero",
+  /** Twin Pulse ring index 0-4 to highlight on the figure, or -1 for none. */
+  highlightBand = -1,
+  /** Set while Jarvis is open: only one WebGL context runs at a time. */
+  paused = false,
+  onSelect,
   className,
 }: {
   /** "hero" on the Twin screen, "dock" for the persistent shell avatar. */
   size?: "hero" | "dock";
+  highlightBand?: number;
+  paused?: boolean;
+  onSelect?: () => void;
   className?: string;
 }) {
   const { state, intensity, animationEnabled } = useTwinState();
   const container = useRef<HTMLDivElement>(null);
-  const canvasAllowed = useCanvasAllowed(animationEnabled);
-  const active = useFrameLoopActive(container);
+  const canvasAllowed = useCanvasAllowed(animationEnabled) && !paused;
+  const active = useFrameLoopActive(container) && !paused;
 
   const label = `Your twin: ${twinStateLabel[state]}`;
 
@@ -109,7 +123,7 @@ export function TwinVisual({
       ref={container}
       className={cn(
         "relative isolate aspect-square select-none",
-        size === "hero" ? "w-full max-w-[18rem]" : "size-9",
+        size === "hero" ? "w-full max-w-[15rem]" : "size-9",
         className,
       )}
       // Space is reserved by aspect-square, so swapping canvas for fallback
@@ -118,7 +132,13 @@ export function TwinVisual({
     >
       {canvasAllowed ? (
         <>
-          <TwinScene state={state} intensity={intensity} active={active} />
+          <TwinScene
+            state={state}
+            intensity={intensity}
+            active={active}
+            highlightBand={highlightBand}
+            onSelect={onSelect}
+          />
           <span className="sr-only">{label}</span>
         </>
       ) : (

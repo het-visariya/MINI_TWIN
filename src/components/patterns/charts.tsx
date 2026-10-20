@@ -1,27 +1,32 @@
 import { cn } from "cn";
-import { domainHue } from "@/lib/design/tokens";
 import type { Domain } from "@/lib/design/tokens";
 
 /**
  * The two chart forms this product needs, built from tokens and plain SVG/CSS.
  *
- * Both carry a legend and per-cell text, so no value is communicated by colour
+ * Colour rule: the accent is always "you" and never appears twice in one
+ * figure. Everything you are compared against is a grey tint. Both charts
+ * carry a legend and per-cell text, so no value is communicated by colour
  * alone and every figure is readable to a screen reader.
  */
 
 type HeatmapRow = { domain: Domain; label: string; values: number[] };
 
-const intensitySteps = ["0", "0.18", "0.4", "0.65", "0.9"];
+/** Greyscale ramp. Index 0 is "nothing happened" and stays empty. */
+const intensitySteps = [0, 0.1, 0.26, 0.48, 0.75];
 
 export function Heatmap({
   days,
   rows,
   max = 4,
+  /** Column to mark as today. The only accent in the figure. */
+  todayIndex,
   className,
 }: {
   days: string[];
   rows: HeatmapRow[];
   max?: number;
+  todayIndex?: number;
   className?: string;
 }) {
   return (
@@ -35,13 +40,17 @@ export function Heatmap({
             <th scope="col" className="text-muted-foreground w-28 text-left font-medium">
               Activity
             </th>
-            {days.map((day) => (
+            {days.map((day, index) => (
               <th
                 key={day}
                 scope="col"
-                className="text-muted-foreground text-center font-medium"
+                className={cn(
+                  "text-center font-medium",
+                  index === todayIndex ? "text-accent" : "text-muted-foreground",
+                )}
               >
                 {day}
+                {index === todayIndex && <span className="sr-only"> (today)</span>}
               </th>
             ))}
           </tr>
@@ -57,15 +66,20 @@ export function Heatmap({
                   intensitySteps.length - 1,
                   Math.round((value / max) * (intensitySteps.length - 1)),
                 );
+                const isToday = index === todayIndex;
+                const tint = isToday ? "var(--accent)" : "var(--foreground)";
 
                 return (
                   <td key={`${row.label}-${days[index]}`} className="p-0">
                     <span
-                      className="tabular flex h-8 items-center justify-center rounded-md border text-2xs"
+                      className={cn(
+                        "tabular text-2xs flex h-8 items-center justify-center rounded-md border",
+                        isToday ? "border-accent/40" : "border-border",
+                      )}
                       style={{
-                        backgroundColor: `color-mix(in oklab, ${
-                          domainHue[row.domain].light
-                        } ${Number(intensitySteps[step]) * 100}%, transparent)`,
+                        backgroundColor: `color-mix(in oklab, ${tint} ${
+                          intensitySteps[step] * 100
+                        }%, transparent)`,
                       }}
                       title={`${row.label}, ${days[index]}: ${value}`}
                     >
@@ -86,10 +100,18 @@ export function Heatmap({
 }
 
 type TrendSeries = {
-  domain: Domain;
   label: string;
   values: number[];
+  /**
+   * The user's own line. Exactly one series in a chart should set this; it is
+   * drawn in the accent, the rest in grey.
+   */
+  emphasis?: boolean;
+  /** Projections are drawn dashed, matching the simulation treatment. */
+  projected?: boolean;
 };
+
+const greySeries = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)"];
 
 export function TrendChart({
   series,
@@ -112,6 +134,15 @@ export function TrendChart({
         return `${index === 0 ? "M" : "L"}${x.toFixed(1)},${y.toFixed(1)}`;
       })
       .join(" ");
+
+  /* Grey series are numbered independently of the accent one. */
+  const strokes = series.map((item, index) => {
+    if (item.emphasis) return "var(--accent)";
+    const greyRank = series
+      .slice(0, index)
+      .filter((earlier) => !earlier.emphasis).length;
+    return greySeries[greyRank % greySeries.length];
+  });
 
   return (
     <figure className={cn("flex flex-col gap-3", className)}>
@@ -137,27 +168,31 @@ export function TrendChart({
             strokeWidth="1"
           />
         ))}
-        {series.map((item) => (
+        {series.map((item, index) => (
           <path
             key={item.label}
             d={pathFor(item.values)}
             fill="none"
-            stroke={`var(--domain-${item.domain})`}
-            strokeWidth="2"
+            stroke={strokes[index]}
+            strokeWidth={item.emphasis ? 2 : 1.5}
+            strokeDasharray={item.projected ? "4 4" : undefined}
             strokeLinecap="round"
           />
         ))}
       </svg>
 
       <figcaption className="flex flex-wrap gap-3">
-        {series.map((item) => (
+        {series.map((item, index) => (
           <span key={item.label} className="flex items-center gap-1.5 text-xs">
             <span
               aria-hidden
-              className="size-2.5 rounded-full"
-              style={{ backgroundColor: `var(--domain-${item.domain})` }}
+              className="h-0.5 w-3 rounded-full"
+              style={{ backgroundColor: strokes[index] }}
             />
             {item.label}
+            {item.projected && (
+              <span className="text-muted-foreground">(projected)</span>
+            )}
           </span>
         ))}
       </figcaption>

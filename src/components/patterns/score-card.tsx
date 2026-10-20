@@ -13,12 +13,72 @@ import { cn } from "cn";
 import type { Score } from "@/lib/domain/types";
 
 /**
- * A score, its band, its trend against the user's own past, and — required by
- * the Score type — what the number means and which inputs produced it.
+ * A score, its band and its trend against the user's own past.
  *
- * No score renders without its explanation. That rule is the reason `meaning`
- * and `inputs` are not optional on Score.
+ * The Score type still requires `meaning` and `inputs` — no number renders
+ * without its explanation — but the explanation now lives one tap away behind
+ * the (i) button rather than as a paragraph on every card. Numbers first.
  */
+export function ScoreExplainer({ score }: { score: Score }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={`What goes into ${score.label}?`}
+        >
+          <Info aria-hidden />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 text-sm">
+        <p className="font-medium">{score.label}</p>
+        <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
+          {score.meaning}
+        </p>
+        <p className="mt-3 mb-1.5 text-xs font-medium">Built from</p>
+        <ul className="text-muted-foreground space-y-1.5 text-xs">
+          {score.inputs.map((input) => (
+            <li key={input} className="flex gap-2">
+              <span aria-hidden className="text-accent">
+                •
+              </span>
+              <span>{input}</span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-3 flex items-center justify-between gap-2 border-t pt-2.5">
+          <p className="text-muted-foreground text-xs">
+            Compared only with your own history.
+          </p>
+          <AskAboutThis subject={score.label.toLowerCase()} />
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export function ScoreTrend({ trend }: { trend: number }) {
+  const down = trend < 0;
+  const Icon = down ? TrendingDown : TrendingUp;
+
+  return (
+    <p
+      className={cn(
+        "flex items-center gap-1 text-xs",
+        down ? "text-attention" : "text-ok",
+      )}
+    >
+      <Icon className="size-3.5" aria-hidden />
+      <span className="tabular font-mono">
+        {trend > 0 ? "+" : ""}
+        {trend}
+      </span>
+      <span className="text-muted-foreground">vs your 28-day average</span>
+    </p>
+  );
+}
+
 export function ScoreCard({
   score,
   compact = false,
@@ -28,38 +88,23 @@ export function ScoreCard({
   compact?: boolean;
   className?: string;
 }) {
-  const Trend = (score.trend ?? 0) < 0 ? TrendingDown : TrendingUp;
-  const trendTone = (score.trend ?? 0) < 0 ? "text-attention" : "text-ok";
-
   return (
     <div
       className={cn(
-        "bg-card text-card-foreground shadow-card flex flex-col gap-3 rounded-xl border p-4",
+        "bg-card text-card-foreground shadow-card hover:border-border-strong flex flex-col gap-3 rounded-xl border p-5 transition-colors",
         className,
       )}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <DomainIcon domain={score.domain} />
-          <div>
-            <p className="text-sm font-medium">{score.label}</p>
-            {score.trend !== undefined && (
-              <p className={cn("flex items-center gap-1 text-xs", trendTone)}>
-                <Trend className="size-3.5" aria-hidden />
-                <span className="tabular">
-                  {score.trend > 0 ? "+" : ""}
-                  {score.trend}
-                </span>
-                <span className="text-muted-foreground">vs your 28-day average</span>
-              </p>
-            )}
-          </div>
+          <p className="text-sm font-medium">{score.label}</p>
         </div>
-        {!compact && <AskAboutThis subject={score.label.toLowerCase()} />}
+        <ScoreExplainer score={score} />
       </div>
 
       <div className="flex items-end justify-between gap-3">
-        <NumberFlow value={score.value} className="text-2xl font-semibold" />
+        <NumberFlow value={score.value} className="text-2xl leading-none" />
         <StatusChip kind={score.band} />
       </div>
 
@@ -68,33 +113,7 @@ export function ScoreCard({
         aria-label={`${score.label} score: ${score.value} out of 100`}
       />
 
-      <p className="text-muted-foreground text-xs leading-relaxed">{score.meaning}</p>
-
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="-ml-2 self-start">
-            <Info aria-hidden />
-            What goes into this?
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-80 text-sm">
-          <p className="mb-2 font-medium">{score.label} is built from</p>
-          <ul className="text-muted-foreground space-y-1.5">
-            {score.inputs.map((input) => (
-              <li key={input} className="flex gap-2">
-                <span aria-hidden className="text-primary">
-                  •
-                </span>
-                <span>{input}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-muted-foreground mt-3 border-t pt-2 text-xs">
-            Compared only with your own history. Nothing here is a comparison with
-            other people.
-          </p>
-        </PopoverContent>
-      </Popover>
+      {!compact && score.trend !== undefined && <ScoreTrend trend={score.trend} />}
     </div>
   );
 }

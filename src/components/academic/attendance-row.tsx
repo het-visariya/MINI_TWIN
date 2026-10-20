@@ -58,7 +58,7 @@ export function AttendanceRow({ subject }: { subject: Subject }) {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-sm font-semibold">{subject.name}</h3>
+            <h3 className="text-sm font-medium">{subject.name}</h3>
             <StatusChip kind={band}>
               {percent.toFixed(0)}% attendance
             </StatusChip>

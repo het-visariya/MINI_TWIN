@@ -25,7 +25,7 @@ async function AcademicContent() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <section aria-labelledby="subjects-heading" className="space-y-3">
-          <h2 id="subjects-heading" className="text-base font-semibold">
+          <h2 id="subjects-heading" className="text-base font-medium">
             Subjects &amp; attendance
           </h2>
           <p className="text-muted-foreground text-xs">
@@ -49,7 +49,7 @@ async function AcademicContent() {
             aria-labelledby="cascade-heading"
             className="bg-card shadow-card rounded-xl border p-4"
           >
-            <h2 id="cascade-heading" className="text-sm font-semibold">
+            <h2 id="cascade-heading" className="text-sm font-medium">
               Deadline cascade
             </h2>
             <p className="text-muted-foreground mt-1 text-xs">
@@ -61,7 +61,7 @@ async function AcademicContent() {
               {cascade.map((step, index) => (
                 <li key={step.stage}>
                   <div className="flex gap-3">
-                    <span className="bg-muted text-muted-foreground tabular flex size-6 shrink-0 items-center justify-center rounded-full text-2xs font-semibold">
+                    <span className="bg-muted text-muted-foreground tabular flex size-6 shrink-0 items-center justify-center rounded-full text-2xs font-medium">
                       {index + 1}
                     </span>
                     <div className="pb-3">

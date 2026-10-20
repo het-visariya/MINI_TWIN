@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 
+import {
+  AnimatedContent,
+  BlurText,
+  CountUp,
+  DecryptedText,
+  RotatingText,
+  SpotlightCard,
+  StarBorder,
+} from "@/components/bits/twin-bits";
 import { Reveal, Stagger, StaggerItem } from "@/components/motion/reveal";
 import { Heatmap, TrendChart } from "@/components/patterns/charts";
 import { ConflictBanner } from "@/components/patterns/conflict-banner";
@@ -8,6 +18,7 @@ import { ConsentSheet } from "@/components/patterns/consent-sheet";
 import { ConsequenceCard } from "@/components/patterns/consequence-card";
 import { ChatThread } from "@/components/patterns/chat-thread";
 import { DomainIcon } from "@/components/patterns/domain-icon";
+import { PulseRing } from "@/components/patterns/pulse-ring";
 import { ScoreCard } from "@/components/patterns/score-card";
 import { SimulationFrame } from "@/components/patterns/simulation-frame";
 import { CardSkeleton, EmptyState, ErrorState } from "@/components/patterns/states";
@@ -28,25 +39,24 @@ export const metadata: Metadata = { title: "Design system" };
 
 const surfaceTokens = [
   "background",
-  "card",
-  "muted",
-  "secondary",
-  "accent",
-  "primary",
-  "ai",
-  "destructive",
+  "surface-1",
+  "surface-2",
   "border",
+  "border-strong",
+  "foreground",
+  "muted-foreground",
+  "accent",
+  "destructive",
 ] as const;
 
 const typeScale = [
-  { className: "text-3xl font-semibold", label: "Display · 38/44" },
-  { className: "text-2xl font-semibold", label: "Heading 1 · 30/36" },
-  { className: "text-xl font-semibold", label: "Heading 2 · 24/32" },
-  { className: "text-lg font-medium", label: "Heading 3 · 20/28" },
+  { className: "text-3xl", label: "Display · 56/60" },
+  { className: "text-2xl", label: "Metric · 40/44" },
+  { className: "text-xl", label: "Heading 1 · 28/34" },
+  { className: "text-lg", label: "Heading 2 · 20/28" },
   { className: "text-base", label: "Body · 16/24" },
   { className: "text-sm", label: "Body small · 14/22" },
-  { className: "text-xs", label: "Caption · 13/20" },
-  { className: "text-2xs", label: "Micro · 12/18" },
+  { className: "text-xs", label: "Caption · 12/18" },
 ];
 
 const twinStates: TwinState[] = ["focused", "balanced", "stretched", "resting"];
@@ -64,7 +74,7 @@ function Section({
 }) {
   return (
     <section id={id} aria-labelledby={`${id}-heading`} className="scroll-mt-20">
-      <h2 id={`${id}-heading`} className="text-lg font-semibold tracking-tight">
+      <h2 id={`${id}-heading`} className="text-lg font-medium tracking-tight">
         {title}
       </h2>
       <p className="text-muted-foreground mt-1 mb-4 max-w-2xl text-sm">{description}</p>
@@ -74,12 +84,15 @@ function Section({
 }
 
 export default function DesignSystemPage() {
+  /* The design system is a build tool, not part of the product. */
+  if (process.env.NODE_ENV === "production") notFound();
+
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-10">
       <header className="mb-10">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <h1 className="text-2xl font-medium tracking-tight">
               Digital Twin design system
             </h1>
             <p className="text-muted-foreground mt-1 max-w-2xl text-sm">
@@ -101,7 +114,7 @@ export default function DesignSystemPage() {
         <Section
           id="colour"
           title="Colour"
-          description="One accent — violet — plus a single cyan interaction colour for the twin. The domain hues below are data colours: charts, pulse rings and module icons, never branding."
+          description="True black, warm neutral greys and exactly one accent. The accent means \u201cyou can act here\u201d or \u201cthis is you\u201d \u2014 it is never decoration, and the twin and the AI share it rather than having colours of their own."
         >
           <div className="grid grid-cols-3 gap-3 sm:grid-cols-5">
             {surfaceTokens.map((token) => (
@@ -118,14 +131,16 @@ export default function DesignSystemPage() {
             ))}
           </div>
 
-          <h3 className="mt-6 text-sm font-semibold">Domain data hues</h3>
+          <h3 className="mt-6 text-sm font-medium">
+            Domains — told apart by icon and name, not by hue
+          </h3>
           <div className="mt-2 flex flex-wrap gap-2">
             {DOMAINS.map((domain) => (
               <DomainIcon key={domain} domain={domain} withLabel />
             ))}
           </div>
 
-          <h3 className="mt-6 text-sm font-semibold">
+          <h3 className="mt-6 text-sm font-medium">
             Status — colour never carries the meaning alone
           </h3>
           <div className="mt-2 flex flex-wrap gap-2">
@@ -139,7 +154,7 @@ export default function DesignSystemPage() {
         <Section
           id="type"
           title="Typography"
-          description="Inter throughout, with tabular numerals on every score, hour count and currency so figures do not jitter as they change."
+          description="Geist Sans for the interface, Geist Mono for every number, with tabular figures so a score does not jitter as it changes. Headings are medium weight and tight; nothing in the product is bold."
         >
           <div className="bg-card space-y-3 rounded-xl border p-4">
             {typeScale.map((item) => (
@@ -151,7 +166,7 @@ export default function DesignSystemPage() {
               </div>
             ))}
             <div className="border-t pt-3">
-              <p className="tabular text-2xl font-semibold">7.95 · 4h 30m · ₹6,000</p>
+              <p className="tabular text-2xl font-medium">7.95 · 4h 30m · ₹6,000</p>
               <p className="text-muted-foreground mt-1 text-xs">
                 Tabular numerals, used for all metrics
               </p>
@@ -162,11 +177,11 @@ export default function DesignSystemPage() {
         <Section
           id="motion"
           title="Motion"
-          description="Four durations and one easing curve, defined once. Every preset checks the reduced-motion preference and renders the final state instead of animating."
+          description="Three durations and two easing curves, defined once. Every preset \u2014 and every React Bits component \u2014 checks the reduced-motion preference and renders the final state instead of animating."
         >
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="bg-card rounded-xl border p-4">
-              <h3 className="text-sm font-semibold">Durations</h3>
+              <h3 className="text-sm font-medium">Durations</h3>
               <dl className="mt-3 space-y-1.5 text-xs">
                 {Object.entries(duration).map(([name, ms]) => (
                   <div key={name} className="flex justify-between gap-3">
@@ -184,7 +199,7 @@ export default function DesignSystemPage() {
             </div>
 
             <div className="bg-card rounded-xl border p-4">
-              <h3 className="text-sm font-semibold">Stagger reveal</h3>
+              <h3 className="text-sm font-medium">Stagger reveal</h3>
               <Stagger className="mt-3 space-y-2">
                 {["First item", "Second item", "Third item", "Fourth item"].map(
                   (item) => (
@@ -204,7 +219,7 @@ export default function DesignSystemPage() {
         <Section
           id="twin"
           title="The twin"
-          description="One abstract twin, in four states set explicitly by the app or the user. No state expresses disappointment, and none is derived from inferred mood. Shown here as the static fallback, which also replaces the 3D canvas under reduced motion or without WebGL."
+          description="A figure made of ~5,200 points, in four states set explicitly by the app or the user. Warm-white points are you; the accent ones are your active commitments. No state expresses disappointment, and none is derived from inferred mood. Shown here as the static fallback, which also replaces the canvas under reduced motion or without WebGL."
         >
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {twinStates.map((state) => (
@@ -221,11 +236,11 @@ export default function DesignSystemPage() {
         <Section
           id="controls"
           title="Controls"
-          description="Touch-comfortable below the small breakpoint, compact on pointer devices. The AI variants mark actions that involve the twin, so they never look like an ordinary save."
+          description="Touch-comfortable below the small breakpoint, compact on pointer devices. One filled button per view \u2014 if two things are accent-filled, neither reads as the thing to do."
         >
           <div className="bg-card space-y-4 rounded-xl border p-4">
             <div className="flex flex-wrap items-center gap-2">
-              {(["default", "outline", "secondary", "ghost", "destructive", "ai", "ai-soft"] as const).map(
+              {(["primary", "secondary", "outline", "ghost", "destructive"] as const).map(
                 (variant) => (
                   <Button key={variant} variant={variant}>
                     {variant}
@@ -297,7 +312,7 @@ export default function DesignSystemPage() {
             title="Projected CGPA"
             assumptions={fixtures.cgpaSimulation.assumptions}
           >
-            <p className="tabular text-2xl font-semibold">7.95</p>
+            <p className="tabular text-2xl font-medium">7.95</p>
             <p className="text-muted-foreground mt-1 text-xs">
               On the grades you selected, from a current 7.82.
             </p>
@@ -317,22 +332,22 @@ export default function DesignSystemPage() {
         <Section
           id="charts"
           title="Charts"
-          description="Two forms only. Both carry a legend and per-value text, so nothing is communicated by colour alone."
+          description="Two forms only. The accent is always \u201cyou\u201d and never appears twice in one figure; everything you are compared against is a grey tint. Both carry a legend and per-value text, so nothing is communicated by colour alone."
         >
           <div className="grid gap-3 lg:grid-cols-2">
             <div className="bg-card rounded-xl border p-4">
-              <Heatmap days={fixtures.heatmap.days} rows={fixtures.heatmap.rows} />
+              <Heatmap days={fixtures.heatmap.days} rows={fixtures.heatmap.rows} todayIndex={3} />
             </div>
             <div className="bg-card rounded-xl border p-4">
               <TrendChart
                 labels={["W1", "W2", "W3", "W4"]}
                 series={[
-                  { domain: "academic", label: "Academic", values: [58, 64, 70, 62] },
-                  { domain: "health", label: "Fitness", values: [62, 68, 71, 74] },
+                  { label: "You", values: [58, 64, 70, 62], emphasis: true },
+                  { label: "Your 28-day average", values: [62, 61, 63, 62] },
                   {
-                    domain: "productivity",
-                    label: "Productivity",
-                    values: [70, 66, 61, 58],
+                    label: "If nothing changes",
+                    values: [62, 60, 57, 54],
+                    projected: true,
                   },
                 ]}
               />
@@ -350,6 +365,105 @@ export default function DesignSystemPage() {
           </div>
         </Section>
 
+
+        <Section
+          id="bits"
+          title="Motion components"
+          description="The curated React Bits set, recoloured to the tokens and wrapped so each one renders its static end state under reduced motion. Nothing outside this list is installed, and no more than one WebGL canvas is ever visible at once."
+        >
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="bg-card rounded-xl border p-5">
+              <p className="text-muted-foreground font-mono text-2xs">BlurText</p>
+              <p className="mt-2 text-lg">
+                <BlurText text="One twin of you." />
+              </p>
+              <p className="text-muted-foreground mt-4 font-mono text-2xs">
+                RotatingText
+              </p>
+              <p className="mt-2 flex flex-wrap items-baseline gap-1.5 text-lg">
+                <span>Everything in one place —</span>
+                <RotatingText
+                  texts={["your timetable", "your gym", "your money"]}
+                  mainClassName="text-accent"
+                />
+              </p>
+            </div>
+
+            <div className="bg-card rounded-xl border p-5">
+              <p className="text-muted-foreground font-mono text-2xs">CountUp</p>
+              <p className="mt-2 text-2xl" data-slot="metric">
+                <CountUp to={74} />
+              </p>
+              <p className="text-muted-foreground mt-4 font-mono text-2xs">
+                DecryptedText
+              </p>
+              <p className="mt-2 text-sm">
+                <DecryptedText text="DBMS is still your one thing — 2 hours left." />
+              </p>
+            </div>
+
+            <SpotlightCard>
+              <p className="text-muted-foreground font-mono text-2xs">SpotlightCard</p>
+              <p className="mt-2 text-sm">
+                Every card in the app. Hover it: the spotlight is a 6% accent wash,
+                an affordance rather than information.
+              </p>
+            </SpotlightCard>
+
+            <div className="bg-card flex flex-col items-start gap-3 rounded-xl border p-5">
+              <p className="text-muted-foreground font-mono text-2xs">
+                StarBorder — landing CTA only
+              </p>
+              <StarBorder>Create your twin</StarBorder>
+              <p className="text-muted-foreground text-xs">
+                One special button on the whole site. Anywhere else, a primary
+                button.
+              </p>
+            </div>
+
+            <AnimatedContent className="lg:col-span-2">
+              <div className="bg-card rounded-xl border p-5">
+                <p className="text-muted-foreground font-mono text-2xs">
+                  AnimatedContent / FadeContent
+                </p>
+                <p className="mt-2 text-sm">
+                  Section entrances: 12px rise, 300ms, 40ms stagger. This panel
+                  arrived that way.
+                </p>
+              </div>
+            </AnimatedContent>
+          </div>
+
+          <p className="text-muted-foreground mt-4 text-xs">
+            Also installed and token-recoloured, shown on the screens that use
+            them: DotGrid (landing background), MagicBento (landing feature grid),
+            Stepper (onboarding), AnimatedList (reminders and the today list) and
+            Orb (Jarvis).
+          </p>
+        </Section>
+
+        <Section
+          id="pulse"
+          title="Twin Pulse"
+          description="Momentum is the headline number; the five domain scores sit under it as ring gauges. This replaced six equal score cards — tapping a ring highlights its band on the twin figure."
+        >
+          <div className="bg-card rounded-xl border p-5">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+              <div>
+                <p className="text-muted-foreground text-xs">Momentum</p>
+                <p className="text-2xl leading-none" data-slot="metric">
+                  <CountUp to={fixtures.momentum.value} />
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-x-2 gap-y-1">
+                {fixtures.pulse.slice(0, 5).map((score) => (
+                  <PulseRing key={score.id} score={score} />
+                ))}
+              </div>
+            </div>
+          </div>
+        </Section>
+
         <Section
           id="states"
           title="Empty, loading and error"
@@ -359,7 +473,7 @@ export default function DesignSystemPage() {
             <Reveal>
               <EmptyState
                 title="No tasks yet"
-                description="Add your first task and the twin will start ranking by consequence rather than by date."
+                purpose="This screen ranks what you have to do by what it costs you to put off \u2014 not by its due date. Add one task and the twin starts ranking."
                 action={<Button size="sm">Add a task</Button>}
               />
             </Reveal>

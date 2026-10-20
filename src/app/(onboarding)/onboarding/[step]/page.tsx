@@ -60,7 +60,7 @@ export default async function OnboardingStepPage({
           className="mt-2"
           aria-label={`Setup progress: step ${index + 1} of ${steps.length}`}
         />
-        <h1 className="mt-5 text-xl font-semibold tracking-tight">{step.label}</h1>
+        <h1 className="mt-5 text-xl font-medium tracking-tight">{step.label}</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           Everything you enter here is yours, editable and deletable. The twin only
           uses what you allow it to use.
@@ -85,13 +85,13 @@ export default async function OnboardingStepPage({
                 className={cn(
                   "flex min-h-10 items-center gap-2.5 rounded-lg border px-3 text-sm transition-colors",
                   other.slug === slug
-                    ? "border-primary/40 bg-primary/5 font-medium"
+                    ? "border-accent/40 bg-accent/5 font-medium"
                     : "text-muted-foreground hover:bg-muted",
                 )}
               >
                 <span
                   className={cn(
-                    "tabular flex size-5 shrink-0 items-center justify-center rounded-full text-2xs font-semibold",
+                    "tabular flex size-5 shrink-0 items-center justify-center rounded-full text-2xs font-medium",
                     otherIndex < index
                       ? "bg-ok/15 text-ok"
                       : "bg-muted text-muted-foreground",

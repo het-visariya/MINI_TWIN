@@ -56,13 +56,13 @@ export function TimeBudgetBar({
         )} available${over ? `, ${formatHours(shortfall)} more than the day has` : ""}`}
       >
         <div
-          className="bg-primary/25 absolute inset-y-0 left-0"
+          className="bg-accent/25 absolute inset-y-0 left-0"
           style={{ width: `${availableWidth}%` }}
         />
         <div
           className={cn(
             "absolute inset-y-0 left-0 border-r-2",
-            over ? "border-risk bg-risk/20" : "border-primary bg-primary/40",
+            over ? "border-risk bg-risk/20" : "border-accent bg-accent/40",
           )}
           style={{ width: `${plannedWidth}%` }}
         />

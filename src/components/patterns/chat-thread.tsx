@@ -17,7 +17,7 @@ export function TypingIndicator() {
       {[0, 1, 2].map((index) => (
         <span
           key={index}
-          className="bg-ai size-1.5 animate-pulse rounded-full"
+          className="bg-accent size-1.5 animate-pulse rounded-full"
           style={{ animationDelay: `${index * 160}ms` }}
           aria-hidden
         />
@@ -34,7 +34,7 @@ function PlanProposalCard({ proposal }: { proposal: PlanProposal }) {
   const [status, setStatus] = useState(proposal.status);
 
   return (
-    <div className="border-ai/30 bg-ai/5 mt-3 rounded-lg border p-3">
+    <div className="border-accent/25 bg-accent/5 mt-3 rounded-lg border p-3">
       <p className="text-sm font-medium">{proposal.summary}</p>
 
       <ul className="mt-2.5 space-y-1.5">
@@ -49,7 +49,7 @@ function PlanProposalCard({ proposal }: { proposal: PlanProposal }) {
       {status === "proposed" ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Button
-            variant="ai"
+            variant="primary"
             size="sm"
             onClick={() => {
               setStatus("accepted");
@@ -103,7 +103,7 @@ export function TwinMessageBubble({ message }: { message: Message }) {
       data-author={message.author}
     >
       {!isUser && (
-        <span className="border-ai/30 bg-ai/10 text-ai mt-1 inline-flex size-7 shrink-0 items-center justify-center rounded-full border">
+        <span className="border-accent/25 bg-accent/10 text-accent mt-1 inline-flex size-7 shrink-0 items-center justify-center rounded-full border">
           <Sparkles className="size-3.5" aria-hidden />
           <span className="sr-only">Your twin</span>
         </span>
@@ -114,7 +114,7 @@ export function TwinMessageBubble({ message }: { message: Message }) {
           className={cn(
             "inline-block rounded-2xl px-4 py-2.5 text-left text-sm leading-relaxed",
             isUser
-              ? "bg-primary text-primary-foreground rounded-br-md"
+              ? "bg-accent text-accent-foreground rounded-br-md"
               : "bg-card rounded-bl-md border",
           )}
         >

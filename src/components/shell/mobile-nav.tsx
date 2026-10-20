@@ -38,7 +38,7 @@ export function MobileNav() {
                 aria-current={active ? "page" : undefined}
                 className={cn(
                   "flex min-h-14 flex-col items-center justify-center gap-0.5 text-2xs",
-                  active ? "text-primary font-medium" : "text-muted-foreground",
+                  active ? "text-accent font-medium" : "text-muted-foreground",
                 )}
               >
                 <item.icon className="size-5" aria-hidden />

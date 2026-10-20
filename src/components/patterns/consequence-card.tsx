@@ -82,15 +82,15 @@ export function ConsequenceCard({
               key={option.id}
               className={cn(
                 "flex flex-col gap-3 rounded-lg border p-3 transition-colors",
-                option.recommended ? "border-primary/40 bg-primary/5" : "bg-muted/30",
+                option.recommended ? "border-accent/40 bg-accent/5" : "bg-surface-2/60",
                 isChosen && "ring-ring ring-2",
               )}
             >
               <div>
                 <div className="flex items-center justify-between gap-2">
-                  <p className="text-sm font-semibold">{option.label}</p>
+                  <p className="text-sm font-medium">{option.label}</p>
                   {option.recommended && (
-                    <span className="text-primary bg-primary/10 rounded-full px-2 py-0.5 text-2xs font-medium">
+                    <span className="text-accent bg-accent/10 rounded-full px-2 py-0.5 text-2xs font-medium">
                       Suggested
                     </span>
                   )}
@@ -130,7 +130,7 @@ export function ConsequenceCard({
         <ul className="text-muted-foreground mt-1.5 space-y-1 text-xs">
           {consequence.assumptions.map((assumption) => (
             <li key={assumption} className="flex gap-2">
-              <span aria-hidden className="text-primary">
+              <span aria-hidden className="text-accent">
                 •
               </span>
               <span>{assumption}</span>

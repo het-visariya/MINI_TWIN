@@ -36,7 +36,7 @@ export default function LandingPage() {
           <span className="size-7">
             <TwinFallback state="balanced" label="" />
           </span>
-          <span className="text-sm font-semibold tracking-tight">Digital Twin</span>
+          <span className="text-sm font-medium tracking-tight">Digital Twin</span>
         </span>
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
@@ -49,10 +49,10 @@ export default function LandingPage() {
       <main id="main" className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:py-16">
         <div className="grid gap-10 lg:grid-cols-[1fr_auto] lg:items-center">
           <div>
-            <p className="text-primary text-2xs font-semibold tracking-wide uppercase">
+            <p className="text-accent text-2xs font-medium tracking-wide uppercase">
               For students and working professionals
             </p>
-            <h1 className="mt-3 text-3xl leading-tight font-semibold tracking-tight sm:text-[2.75rem]">
+            <h1 className="mt-3 text-3xl leading-tight font-medium tracking-tight sm:text-[2.75rem]">
               Your timetable, gym, money and goals finally talk to each other.
             </h1>
             <p className="text-muted-foreground mt-4 max-w-xl text-base">
@@ -84,7 +84,7 @@ export default function LandingPage() {
         </div>
 
         <section aria-labelledby="different-heading" className="mt-14">
-          <h2 id="different-heading" className="text-lg font-semibold">
+          <h2 id="different-heading" className="text-lg font-medium">
             What makes it a twin rather than a dashboard
           </h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -93,10 +93,10 @@ export default function LandingPage() {
                 key={item.title}
                 className="bg-card shadow-card rounded-xl border p-4"
               >
-                <span className="border-primary/25 bg-primary/10 text-primary inline-flex size-9 items-center justify-center rounded-lg border">
+                <span className="border-accent/25 bg-accent/10 text-accent inline-flex size-9 items-center justify-center rounded-lg border">
                   <item.icon className="size-4.5" aria-hidden />
                 </span>
-                <h3 className="mt-3 text-sm font-semibold">{item.title}</h3>
+                <h3 className="mt-3 text-sm font-medium">{item.title}</h3>
                 <p className="text-muted-foreground mt-1.5 text-sm">{item.body}</p>
               </article>
             ))}

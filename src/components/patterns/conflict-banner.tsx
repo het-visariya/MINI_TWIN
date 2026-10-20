@@ -4,7 +4,6 @@ import { ChevronDown, Wand2, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { DomainIcon } from "@/components/patterns/domain-icon";
 import { StatusChip } from "@/components/patterns/status-chip";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +16,10 @@ import type { Conflict } from "@/lib/domain/types";
 
 /**
  * A detected cross-domain conflict and the ways out of it.
+ *
+ * One line and one button. The four domain chips that used to sit here told
+ * the user nothing they could act on; the summary sentence already names the
+ * problem, and "Fix my day" is the only thing to do about it.
  *
  * The twin proposes; the user accepts, modifies or dismisses. Nothing in the
  * user's plan changes until they pick something.
@@ -43,19 +46,14 @@ export function ConflictBanner({
       )}
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <StatusChip kind={conflict.severity}>Time conflict</StatusChip>
-            {conflict.domains.map((domain) => (
-              <DomainIcon key={domain} domain={domain} withLabel />
-            ))}
-          </div>
-          <p className="mt-2 text-sm font-medium">{conflict.summary}</p>
+        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
+          <StatusChip kind={conflict.severity}>Time conflict</StatusChip>
+          <p className="text-sm font-medium">{conflict.summary}</p>
         </div>
 
         <div className="flex items-center gap-1.5">
           <CollapsibleTrigger asChild>
-            <Button variant="default" size="sm">
+            <Button size="sm">
               <Wand2 aria-hidden />
               Fix my day
               <ChevronDown
