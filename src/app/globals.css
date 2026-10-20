@@ -1,0 +1,284 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* ---------------------------------------------------------------------------
+   Digital Twin design tokens.
+   Raw colour values live here and in src/lib/design/tokens.ts (for canvas /
+   chart code that cannot read CSS variables). Nowhere else.
+   --------------------------------------------------------------------------- */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+
+  /* shadcn surface + control tokens */
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* the single interaction/AI accent */
+  --color-ai: var(--ai);
+  --color-ai-foreground: var(--ai-foreground);
+  --color-ai-muted: var(--ai-muted);
+
+  /* status — always paired with an icon + label, never colour alone */
+  --color-ok: var(--ok);
+  --color-attention: var(--attention);
+  --color-risk: var(--risk);
+  --color-overdue: var(--overdue);
+  --color-simulation: var(--simulation);
+
+  /* domain data hues — charts, pulse rings and module icons only */
+  --color-domain-academic: var(--domain-academic);
+  --color-domain-productivity: var(--domain-productivity);
+  --color-domain-health: var(--domain-health);
+  --color-domain-nutrition: var(--domain-nutrition);
+  --color-domain-finance: var(--domain-finance);
+  --color-domain-career: var(--domain-career);
+  --color-domain-goals: var(--domain-goals);
+  --color-domain-routine: var(--domain-routine);
+
+  --color-chart-1: var(--domain-academic);
+  --color-chart-2: var(--domain-productivity);
+  --color-chart-3: var(--domain-health);
+  --color-chart-4: var(--domain-finance);
+  --color-chart-5: var(--domain-career);
+
+  /* sidebar */
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* shape — 4px scale, radii 8/12/16/24 */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* type scale */
+  --text-2xs: 0.75rem;
+  --text-2xs--line-height: 1.1rem;
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.25rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.5rem;
+  --text-xl--line-height: 2rem;
+  --text-2xl: 1.875rem;
+  --text-2xl--line-height: 2.25rem;
+  --text-3xl: 2.375rem;
+  --text-3xl--line-height: 2.75rem;
+
+  /* elevation — exactly two levels */
+  --shadow-card: var(--elevation-card);
+  --shadow-overlay: var(--elevation-overlay);
+
+  /* motion — see src/components/motion/presets.ts for the JS mirror */
+  --ease-twin: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-instant: 100ms;
+  --duration-fast: 180ms;
+  --duration-base: 280ms;
+  --duration-slow: 450ms;
+}
+
+:root {
+  --radius: 0.75rem;
+
+  --background: #faf5ff;
+  --foreground: #1e1b4b;
+  --card: #ffffff;
+  --card-foreground: #1e1b4b;
+  --popover: #ffffff;
+  --popover-foreground: #1e1b4b;
+
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+  --secondary: #f3eefe;
+  --secondary-foreground: #4c1d95;
+  --muted: #eceef9;
+  --muted-foreground: #475569;
+  --accent: #ede9fe;
+  --accent-foreground: #4c1d95;
+
+  --ai: #0891b2;
+  --ai-foreground: #ffffff;
+  --ai-muted: #e0f6fb;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #ddd6fe;
+  --border-strong: #c4b5fd;
+  --input: #ddd6fe;
+  --ring: #7c3aed;
+
+  --ok: #15803d;
+  --attention: #b45309;
+  --risk: #dc2626;
+  --overdue: #be123c;
+  --simulation: #0e7490;
+
+  --domain-academic: #4f46e5;
+  --domain-productivity: #0d9488;
+  --domain-health: #0891b2;
+  --domain-nutrition: #059669;
+  --domain-finance: #0284c7;
+  --domain-career: #d97706;
+  --domain-goals: #7c3aed;
+  --domain-routine: #64748b;
+
+  --sidebar: #f6f1fe;
+  --sidebar-foreground: #1e1b4b;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ede9fe;
+  --sidebar-accent-foreground: #4c1d95;
+  --sidebar-border: #ddd6fe;
+  --sidebar-ring: #7c3aed;
+
+  --elevation-card: 0 1px 2px 0 rgb(30 27 75 / 0.05), 0 1px 3px 0 rgb(30 27 75 / 0.06);
+  --elevation-overlay: 0 8px 30px -8px rgb(30 27 75 / 0.22), 0 2px 8px -2px rgb(30 27 75 / 0.12);
+}
+
+.dark {
+  --background: #0f0f23;
+  --foreground: #e2e8f0;
+  --card: #1a1830;
+  --card-foreground: #e2e8f0;
+  --popover: #1e1c35;
+  --popover-foreground: #e2e8f0;
+
+  --primary: #8b5cf6;
+  --primary-foreground: #0f0f23;
+  --secondary: #27273b;
+  --secondary-foreground: #e2e8f0;
+  --muted: #27273b;
+  --muted-foreground: #94a3b8;
+  --accent: #2a2a46;
+  --accent-foreground: #e2e8f0;
+
+  --ai: #22d3ee;
+  --ai-foreground: #0f0f23;
+  --ai-muted: #14303c;
+
+  --destructive: #ef4444;
+  --destructive-foreground: #0f0f23;
+  --border: #302c52;
+  --border-strong: #4c1d95;
+  --input: #302c52;
+  --ring: #8b5cf6;
+
+  --ok: #4ade80;
+  --attention: #fbbf24;
+  --risk: #f87171;
+  --overdue: #fb7185;
+  --simulation: #22d3ee;
+
+  --domain-academic: #818cf8;
+  --domain-productivity: #2dd4bf;
+  --domain-health: #22d3ee;
+  --domain-nutrition: #34d399;
+  --domain-finance: #38bdf8;
+  --domain-career: #fbbf24;
+  --domain-goals: #a78bfa;
+  --domain-routine: #94a3b8;
+
+  --sidebar: #15142b;
+  --sidebar-foreground: #e2e8f0;
+  --sidebar-primary: #8b5cf6;
+  --sidebar-primary-foreground: #0f0f23;
+  --sidebar-accent: #2a2a46;
+  --sidebar-accent-foreground: #e2e8f0;
+  --sidebar-border: #302c52;
+  --sidebar-ring: #8b5cf6;
+
+  --elevation-card: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --elevation-overlay: 0 12px 36px -10px rgb(0 0 0 / 0.65), 0 2px 10px -2px rgb(0 0 0 / 0.5);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    @apply font-sans;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    touch-action: manipulation;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+
+  /* Numbers must not jitter as they change. */
+  .tabular,
+  [data-slot="metric"] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  :focus-visible {
+    @apply outline-ring outline-2 outline-offset-2;
+  }
+}
+
+@layer utilities {
+  /* The one treatment that marks projected, non-factual content. */
+  .simulation-frame {
+    border: 1px dashed var(--simulation);
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in oklab, var(--simulation) 6%, transparent) 0 6px,
+      transparent 6px 12px
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
