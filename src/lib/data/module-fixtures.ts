@@ -37,6 +37,17 @@ import type {
   MealLogView,
   NutritionView,
 } from "@/lib/data/nutrition.repo";
+import {
+  annualSubscriptionCost,
+  dailyCumulative,
+  fdMaturity,
+  investmentSummary,
+  monthlyToReachGoal,
+  projectedMonthEnd,
+  savingsProgress,
+  spendByCategory,
+} from "@/lib/domain/calc/finance";
+import type { ExpenseView, FinanceView } from "@/lib/data/finance.repo";
 
 /** Days back from `now`, as a yyyy-mm-dd string. */
 function daysAgo(now: Date, days: number): string {
@@ -319,5 +330,123 @@ export function nutritionView(now: Date): NutritionView {
       { id: "d-sm-2", name: "Eggs and milk", items: savedBreakfast.map((row) => ({ label: row.label, quantity: row.quantity })), totals: dailyTotals(savedBreakfast) },
     ],
     daysLoggedLast14: 9,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   finance                                  */
+/* -------------------------------------------------------------------------- */
+
+/** ₹8,000 a month to live on, which is what a hostel student actually has. */
+const DEMO_BUDGET_MINOR = 800_000;
+const DEMO_INCOME_MINOR = 1_000_000;
+
+export function financeView(now: Date): FinanceView {
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const dayOfMonth = now.getDate();
+
+  const day = (d: number) => isoDate(new Date(year, month, Math.min(d, dayOfMonth)));
+
+  /* Spread across the month so the run-rate projection has something real to
+     work from, and weighted towards food and travel the way a student's is. */
+  const expenses: ExpenseView[] = [
+    { id: "d-e-1", date: day(1), category: "Rent", amountMinor: 350_000, paymentMethod: "UPI", note: "Hostel mess + room" },
+    { id: "d-e-2", date: day(2), category: "Food", amountMinor: 18_000, paymentMethod: "UPI", note: "Canteen" },
+    { id: "d-e-3", date: day(3), category: "Travel", amountMinor: 4_000, paymentMethod: "CASH" },
+    { id: "d-e-4", date: day(4), category: "Books", amountMinor: 62_000, paymentMethod: "CARD", note: "DBMS textbook" },
+    { id: "d-e-5", date: day(6), category: "Food", amountMinor: 24_000, paymentMethod: "UPI" },
+    { id: "d-e-6", date: day(8), category: "Phone", amountMinor: 29_900, paymentMethod: "UPI", note: "Recharge" },
+    { id: "d-e-7", date: day(9), category: "Fun", amountMinor: 35_000, paymentMethod: "UPI", note: "Cinema" },
+    { id: "d-e-8", date: day(11), category: "Food", amountMinor: 21_000, paymentMethod: "CASH" },
+    { id: "d-e-9", date: day(13), category: "Travel", amountMinor: 12_000, paymentMethod: "UPI", note: "Train home" },
+    { id: "d-e-10", date: day(15), category: "Health", amountMinor: 45_000, paymentMethod: "CARD", note: "Gym fee" },
+    { id: "d-e-11", date: day(17), category: "Food", amountMinor: 26_500, paymentMethod: "UPI" },
+    { id: "d-e-12", date: day(19), category: "Fun", amountMinor: 15_000, paymentMethod: "UPI" },
+    { id: "d-e-13", date: day(21), category: "Food", amountMinor: 19_000, paymentMethod: "CASH" },
+  ].filter((expense) => new Date(expense.date).getDate() <= dayOfMonth) as ExpenseView[];
+
+  const subscriptionRows = [
+    { name: "Music streaming", amountMinor: 11_900, cycle: "MONTHLY" as const, nextRenewal: isoDate(new Date(year, month, Math.min(28, 28))) },
+    { name: "Cloud storage", amountMinor: 8_900, cycle: "MONTHLY" as const, nextRenewal: isoDate(new Date(year, month + 1, 3)) },
+    { name: "Course platform", amountMinor: 299_000, cycle: "YEARLY" as const, nextRenewal: isoDate(new Date(year, month + 4, 12)) },
+  ];
+
+  const investments = [
+    { kind: "SIP" as const, name: "Index fund SIP", investedMinor: 1_200_000, currentMinor: 1_318_000, interestRate: null, sipAmountMinor: 100_000, startDate: isoDate(new Date(year - 1, month, 5)) },
+    { kind: "FD" as const, name: "Bank FD", investedMinor: 2_500_000, currentMinor: 2_500_000, interestRate: 7.1, sipAmountMinor: null, startDate: isoDate(new Date(year - 1, month, 1)) },
+    { kind: "STOCK" as const, name: "One large-cap holding", investedMinor: 600_000, currentMinor: 547_000, interestRate: null, sipAmountMinor: null, startDate: isoDate(new Date(year, month - 6, 14)) },
+  ];
+
+  return {
+    profile: {
+      monthlyIncomeMinor: DEMO_INCOME_MINOR,
+      monthlyBudgetMinor: DEMO_BUDGET_MINOR,
+      currency: "INR",
+    },
+
+    expenses,
+    categories: spendByCategory(expenses, now),
+    projection: projectedMonthEnd(expenses, DEMO_BUDGET_MINOR, now, subscriptionRows),
+    cumulative: dailyCumulative(expenses, now),
+
+    subscriptions: subscriptionRows.map((row, index) => ({
+      id: `d-sub-${index}`,
+      ...row,
+      daysAway: Math.round(
+        (new Date(row.nextRenewal).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) /
+          86_400_000,
+      ),
+    })),
+    annualSubscriptionMinor: annualSubscriptionCost(subscriptionRows),
+
+    savingsGoals: [
+      {
+        id: "d-sg-1",
+        name: "Laptop upgrade",
+        targetMinor: 6_500_000,
+        savedMinor: 2_100_000,
+        deadline: isoDate(new Date(year + 1, 5, 1)),
+        progress: savingsProgress(2_100_000, 6_500_000),
+        monthlyNeededMinor: monthlyToReachGoal(
+          2_100_000,
+          6_500_000,
+          new Date(year + 1, 5, 1),
+          now,
+        ),
+      },
+      {
+        id: "d-sg-2",
+        name: "Emergency buffer",
+        targetMinor: 2_000_000,
+        savedMinor: 2_000_000,
+        deadline: null,
+        progress: savingsProgress(2_000_000, 2_000_000),
+        monthlyNeededMinor: null,
+      },
+    ],
+
+    investments: investments.map((row, index) => ({
+      id: `d-inv-${index}`,
+      kind: row.kind,
+      name: row.name,
+      symbol: null,
+      units: 0,
+      investedMinor: row.investedMinor,
+      currentMinor: row.currentMinor,
+      interestRate: row.interestRate,
+      sipAmountMinor: row.sipAmountMinor,
+      sipDay: row.kind === "SIP" ? 5 : null,
+      startDate: row.startDate,
+      maturity:
+        row.kind === "FD" && row.interestRate
+          ? fdMaturity(row.investedMinor, row.interestRate, 1, "quarterly")
+          : null,
+    })),
+    investmentSummary: investmentSummary(investments),
+
+    /* Always false in the demo: there is no market-data key, and showing a
+       live price that is not live would misrepresent the product. */
+    livePrices: false,
   };
 }
