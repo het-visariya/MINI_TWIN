@@ -56,6 +56,15 @@ import {
 } from "@/lib/domain/calc/career";
 import { findRoleTemplate } from "@/lib/domain/data/role-templates";
 import type { CareerView } from "@/lib/data/career.repo";
+import {
+  ACHIEVEMENTS,
+  lifeGraph,
+  twinEvolution,
+  weeklyReview,
+  type AchievementKey,
+  type SnapshotRow,
+} from "@/lib/domain/calc/insights";
+import type { InsightsView } from "@/lib/data/insights.repo";
 
 /** Days back from `now`, as a yyyy-mm-dd string. */
 function daysAgo(now: Date, days: number): string {
@@ -557,4 +566,91 @@ export function careerView(now: Date): CareerView {
     roadmap,
     roadmapProgress: roadmapProgress(roadmap, now),
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                  insights                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * 26 days of history, so the demo shows the Life Graph unlocked rather than
+ * the "9 of 21 days collected" ring. Both states matter, but the unlocked one
+ * is the feature, and a visitor trying the demo should see it.
+ *
+ * The series are correlated on purpose and in a direction a student would
+ * recognise: on days the routine score is higher — slept properly, kept the
+ * day's scaffolding — productivity is higher too. That is the pattern the Life
+ * Graph exists to let somebody notice about themselves, and it is still
+ * labelled "pattern, not proof".
+ */
+export function insightsView(now: Date): InsightsView {
+  const days = 26;
+
+  const rows: SnapshotRow[] = Array.from({ length: days }, (_, index) => {
+    const offset = days - 1 - index;
+
+    /* A deterministic wobble rather than Math.random(), so the demo looks the
+       same on every render and a screenshot test is stable. */
+    const wobble = (seed: number) => ((index * 7 + seed * 13) % 11) - 5;
+
+    const routine = clampScore(68 + wobble(1));
+    const productivity = clampScore(routine - 6 + wobble(2));
+    const fitness = clampScore(index % 7 === 0 || index % 7 === 3 ? 100 : 55 + wobble(3));
+    const academic = clampScore(72 + wobble(4));
+    const career = clampScore(46 + index * 0.4 + wobble(5));
+
+    return {
+      date: daysAgo(now, offset),
+      academic,
+      fitness,
+      productivity,
+      career,
+      routine,
+      momentum: Math.round((academic + fitness + productivity + career + routine) / 5),
+    };
+  });
+
+  const weekStart = startOfWeek(now);
+
+  const review = weeklyReview({
+    workouts: { kept: 3, planned: 3 },
+    tasks: { completed: 7, overdue: 2 },
+    attendance: [
+      { subject: "DBMS", pct: 71, required: 75 },
+      { subject: "Operating Systems", pct: 86, required: 75 },
+    ],
+    sleep: { nights: 6, averageMinutes: 404 },
+    nutrition: { daysLogged: 5 },
+    money: { spentMinor: 650_000, budgetMinor: 800_000 },
+    career: { itemsDone: 1 },
+  });
+
+  /* Three unlocked, the rest visible and locked with their requirement shown.
+     A locked achievement reads as information, not as a debt. */
+  const unlocked = new Set<AchievementKey>([
+    "first-week-logged",
+    "first-weekly-review",
+    "savings-goal-reached",
+  ]);
+
+  return {
+    evolution: twinEvolution(rows, 30, now),
+    lifeGraph: lifeGraph(
+      (["routine", "productivity", "fitness", "academic"] as const).map((key) => ({
+        id: key,
+        label: key.charAt(0).toUpperCase() + key.slice(1),
+        values: rows.map((row) => row[key]),
+      })),
+    ),
+    review: { ...review, weekStart: isoDate(weekStart) },
+    achievements: ACHIEVEMENTS.map((definition) => ({
+      ...definition,
+      unlockedAt: unlocked.has(definition.key) ? daysAgo(now, 4) : null,
+    })),
+    snapshotDays: rows.length,
+  };
+}
+
+function clampScore(value: number): number {
+  return Math.min(100, Math.max(0, Math.round(value)));
 }

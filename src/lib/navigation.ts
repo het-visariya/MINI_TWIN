@@ -43,7 +43,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/goals", label: "Goals & planning", icon: Target },
       { href: "/regreter", label: "Regreter & future self", icon: Scale },
-      { href: "/insights", label: "Insights & reviews", icon: LineChart, upcoming: true },
+      { href: "/insights", label: "Insights & reviews", icon: LineChart },
     ],
   },
   {
