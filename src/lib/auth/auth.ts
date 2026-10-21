@@ -9,7 +9,7 @@ import { getPrisma } from "@/lib/db";
 import {
   sendPasswordResetEmail,
   sendVerificationEmail,
-} from "@/lib/email/mailjet";
+} from "@/lib/integrations/mailer";
 
 /**
  * Better Auth, built on first use.
