@@ -42,16 +42,43 @@ model User {
   goals       Goal[]
   habits      Habit[]
   habitLogs   HabitLog[]
-  workouts    WorkoutLog[]
+
+  healthProfile   HealthProfile?
+  workoutSessions WorkoutSession[]
+  workoutSets     WorkoutSet[]
+  weights         WeightLog[]
+  sleep           SleepLog[]
+  water           WaterLog[]
+  moods           MoodCheckin[]
+
+  dietProfile DietProfile?
   meals       MealLog[]
-  weights     WeightLog[]
-  sleep       SleepLog[]
-  water       WaterLog[]
-  moods       MoodCheckin[]
-  expenses    Expense[]
-  investments Investment[]
-  consentLog  AiConsentLog[]
-  messages    TwinMessage[]
+  mealItems   MealItem[]
+  savedMeals  SavedMeal[]
+
+  financeProfile FinanceProfile?
+  expenses       Expense[]
+  subscriptions  Subscription[]
+  savingsGoals   SavingsGoal[]
+  investments    Investment[]
+
+  careerGoals    CareerGoal[]
+  skills         UserSkill[]
+  certifications Certification[]
+  projects       Project[]
+  placement      PlacementStatus?
+  roadmapItems   RoadmapItem[]
+
+  snapshots     PulseSnapshot[]
+  weeklyReviews WeeklyReview[]
+  achievements  Achievement[]
+
+  notifications     Notification[]
+  reminderRules     ReminderRule[]
+  notificationPrefs NotificationPrefs?
+
+  consentLog AiConsentLog[]
+  messages   TwinMessage[]
 
   @@map("user")
 }
@@ -182,10 +209,9 @@ model Profile {
   wakePhraseEnabled   Boolean @default(false)
   voiceRepliesEnabled Boolean @default(false)
 
-  /// Reminder guardrails.
-  quietHoursStart  Int @default(22)
-  quietHoursEnd    Int @default(7)
-  dailyReminderCap Int @default(4)
+  /// Reminder guardrails live on NotificationPrefs, which is the single
+  /// source of truth for quiet hours, the daily cap and the email switch.
+  /// Keeping a second copy here would let the two drift apart silently.
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -373,24 +399,76 @@ model HabitLog {
 
 /* --------------------------------- health --------------------------------- */
 
-model WorkoutLog {
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+/// The measurements the health calculations need, kept apart from Profile
+/// because they change over time while Profile holds identity.
+///
+/// `sex`, `dob` and `hasMedicalCondition` are deliberately NOT duplicated
+/// here: they live on Profile, where the age gate wrote them, and every safety
+/// rule reads them from there. Two copies of an age is how a rule that depends
+/// on it gets silently bypassed.
+model HealthProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  heightCm      Float?
+  activityLevel ActivityLevel @default(LIGHT)
+  /// Sessions a week the user says they intend to train. Consistency is
+  /// measured against this, which is their own number rather than a default.
+  plannedPerWeek Int @default(3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("health_profile")
+}
+
+/// One visit to the gym. Sets hang off it rather than being JSON on it,
+/// because personal records and per-exercise volume are genuine queries.
+model WorkoutSession {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  date     DateTime @db.Date
+  date  DateTime @db.Date
+  notes String?
+
+  sets WorkoutSet[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@map("workout_session")
+}
+
+model WorkoutSet {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sessionId String
+  session   WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
   exercise String
-  /// Array of { reps, weightKg }. Kept as JSON because set counts vary and
-  /// nothing queries inside a set.
-  sets     Json     @default("[]")
-  /// Denormalised so weekly volume does not require summing JSON.
-  volumeKg Float    @default(0)
-  notes    String?
+  /// Position within the session, so "repeat last set" is well defined.
+  setIndex Int
+  reps     Int
+  weightKg Float @default(0)
 
   createdAt DateTime @default(now())
 
-  @@index([userId, date])
-  @@map("workout_log")
+  @@index([userId, exercise])
+  @@index([sessionId])
+  @@map("workout_set")
 }
 
 model WeightLog {
@@ -450,29 +528,195 @@ model MoodCheckin {
 
 /* -------------------------------- nutrition ------------------------------- */
 
+enum DietType {
+  VEGETARIAN
+  EGGETARIAN
+  NON_VEGETARIAN
+  VEGAN
+  JAIN
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  SNACK
+  DINNER
+}
+
+/// The food table. Global rather than per-user: it is reference data, seeded
+/// from IFCT 2017, and `source` records where each row's numbers came from so
+/// the UI can mark an estimate as an estimate instead of implying a lab value.
+model Food {
+  id String @id @default(cuid())
+
+  name String @unique
+  /// Alternate spellings and regional names, matched by the meal parser.
+  aliases String[]
+
+  servingLabel String
+  servingGrams Float
+
+  kcal     Float
+  proteinG Float
+  carbsG   Float
+  fatG     Float
+  fibreG   Float @default(0)
+
+  /// "IFCT 2017", another cited table, or the literal "estimate". Never empty.
+  source String
+
+  items      MealItem[]
+  savedItems SavedMealItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([name])
+  @@map("food")
+}
+
+model DietProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dietType DietType @default(VEGETARIAN)
+  /// Free-text allergens. A meal matching one of these cannot save until the
+  /// user has explicitly confirmed past the warning.
+  allergies String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("diet_profile")
+}
+
 model MealLog {
   id     String @id @default(cuid())
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   date     DateTime @db.Date
-  mealType String   @default("snack")
-  /// Parsed items: { name, servings, kcal, proteinG, carbsG, fatG, matched }.
-  items    Json     @default("[]")
-  kcal     Int      @default(0)
-  proteinG Float    @default(0)
-  carbsG   Float    @default(0)
-  fatG     Float    @default(0)
-  /// True when any item fell back to an estimate rather than a table match.
-  estimated Boolean @default(false)
+  mealType MealType @default(SNACK)
+
+  items MealItem[]
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([userId, date])
   @@map("meal_log")
 }
 
+/// One food in one meal. Macros are copied onto the row rather than read
+/// through `foodId` at display time: the food table can be corrected later,
+/// and a past day's log must not change retroactively underneath the user.
+model MealItem {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  mealLogId String
+  mealLog   MealLog @relation(fields: [mealLogId], references: [id], onDelete: Cascade)
+
+  /// Null when the parser could not match the text to the food table.
+  foodId String?
+  food   Food?   @relation(fields: [foodId], references: [id], onDelete: SetNull)
+
+  /// What the user typed, kept verbatim so an unmatched item stays legible.
+  label    String
+  quantity Float  @default(1)
+
+  kcal     Float @default(0)
+  proteinG Float @default(0)
+  carbsG   Float @default(0)
+  fatG     Float @default(0)
+
+  /// True when the numbers are a guess rather than a table match. Drives the
+  /// "Couldn't match — add details" row.
+  isEstimate Boolean @default(false)
+
+  @@index([mealLogId])
+  @@index([userId])
+  @@map("meal_item")
+}
+
+model SavedMeal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name  String
+  items SavedMealItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("saved_meal")
+}
+
+model SavedMealItem {
+  id String @id @default(cuid())
+
+  savedMealId String
+  savedMeal   SavedMeal @relation(fields: [savedMealId], references: [id], onDelete: Cascade)
+
+  foodId String?
+  food   Food?   @relation(fields: [foodId], references: [id], onDelete: SetNull)
+
+  label    String
+  quantity Float  @default(1)
+
+  kcal     Float @default(0)
+  proteinG Float @default(0)
+  carbsG   Float @default(0)
+  fatG     Float @default(0)
+
+  isEstimate Boolean @default(false)
+
+  @@index([savedMealId])
+  @@map("saved_meal_item")
+}
+
 /* --------------------------------- money ---------------------------------- */
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  NETBANKING
+  OTHER
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum InvestmentKind {
+  STOCK
+  MUTUAL_FUND
+  FD
+  SIP
+}
+
+/// Every amount in this section is paise held in an Int. Money is never a
+/// float: `0.1 + 0.2` is not 0.3, and a budget that is three paise out is a
+/// bug the user cannot explain.
+model FinanceProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  monthlyIncomeMinor Int    @default(0)
+  monthlyBudgetMinor Int    @default(0)
+  currency           String @default("INR")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("finance_profile")
+}
 
 model Expense {
   id     String @id @default(cuid())
@@ -481,16 +725,53 @@ model Expense {
 
   date     DateTime @db.Date
   category String
-  /// Paise, not rupees. Money is never stored as a float.
-  amountMinor Int
-  note        String?
-  /// Set for subscriptions; drives the renewal list.
-  renewsOn    DateTime? @db.Date
+  /// Paise, not rupees.
+  amountMinor   Int
+  note          String?
+  paymentMethod PaymentMethod @default(UPI)
 
   createdAt DateTime @default(now())
 
   @@index([userId, date])
+  @@index([userId, category])
   @@map("expense")
+}
+
+/// Recurring charges. Separate from Expense because a subscription is a
+/// commitment that has not happened yet — the month-end projection adds the
+/// renewals that fall before the month ends.
+model Subscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  amountMinor Int
+  cycle       BillingCycle @default(MONTHLY)
+  nextRenewal DateTime     @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, nextRenewal])
+  @@map("subscription")
+}
+
+model SavingsGoal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  targetMinor Int
+  savedMinor  Int       @default(0)
+  deadline    DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("savings_goal")
 }
 
 model Investment {
@@ -498,21 +779,331 @@ model Investment {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  /// stock | mutual_fund | fd | sip
-  kind          String
-  name          String
-  symbol        String?
-  units         Float   @default(0)
-  investedMinor Int     @default(0)
-  /// Manual unless a market data key is configured.
-  currentMinor  Int     @default(0)
-  asOf          DateTime?
+  kind   InvestmentKind
+  name   String
+  symbol String?
+
+  units         Float @default(0)
+  investedMinor Int   @default(0)
+  /// Entered by hand. A live price provider replaces this only when a market
+  /// data key is configured; until then the UI says prices are not connected.
+  currentMinor Int @default(0)
+
+  /// Fixed deposits: annual rate as a percentage, e.g. 7.1.
+  interestRate Float?
+  /// SIPs: the instalment and the day of the month it goes out.
+  sipAmountMinor Int?
+  sipDay         Int?
+
+  startDate DateTime? @db.Date
+  asOf      DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@map("investment")
+}
+
+/* --------------------------------- career --------------------------------- */
+
+enum PlacementStage {
+  PREPARING
+  APPLYING
+  INTERVIEWING
+  OFFER
+  PLACED
+}
+
+enum ProjectStatus {
+  IDEA
+  BUILDING
+  SHIPPED
+  ARCHIVED
+}
+
+model CareerGoal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  targetRole String
+  targetDate DateTime? @db.Date
+
+  requirements RoleSkillRequirement[]
+  roadmap      RoadmapItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("career_goal")
+}
+
+/// What the target role asks for. Pre-filled from a role template and then
+/// editable, because the template is a starting point and not an authority.
+model RoleSkillRequirement {
+  id String @id @default(cuid())
+
+  careerGoalId String
+  careerGoal   CareerGoal @relation(fields: [careerGoalId], references: [id], onDelete: Cascade)
+
+  skill         String
+  /// 1-5.
+  requiredLevel Int @default(3)
+
+  @@unique([careerGoalId, skill])
+  @@index([careerGoalId])
+  @@map("role_skill_requirement")
+}
+
+model UserSkill {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  skill String
+  /// 1-5, the user's own rating.
+  level Int     @default(1)
+  /// What backs the rating up, in their words. Never inferred.
+  evidence String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, skill])
+  @@index([userId])
+  @@map("user_skill")
+}
+
+model Certification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name   String
+  issuer String?
+  date   DateTime? @db.Date
+  url    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("certification")
+}
+
+model Project {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  skills      String[]
+  url         String?
+  status      ProjectStatus @default(BUILDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("project")
+}
+
+model PlacementStatus {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stage PlacementStage @default(PREPARING)
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("placement_status")
+}
+
+model RoadmapItem {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  careerGoalId String
+  careerGoal   CareerGoal @relation(fields: [careerGoalId], references: [id], onDelete: Cascade)
+
+  title   String
+  dueDate DateTime? @db.Date
+  done    Boolean   @default(false)
+  /// Explicit ordering, because the user drags these into the order they
+  /// intend to do them in.
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([careerGoalId, order])
+  @@index([userId])
+  @@map("roadmap_item")
+}
+
+/* -------------------------------- insights -------------------------------- */
+
+/// One row per user per day, written by the snapshot job. This is the only
+/// table in the schema that stores a derived number, and it exists because a
+/// trend cannot be recomputed from the past once the past has gone: today's
+/// pulse is only knowable today.
+model PulseSnapshot {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+
+  academic     Int
+  fitness      Int
+  productivity Int
+  career       Int
+  routine      Int
+  momentum     Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("pulse_snapshot")
+}
+
+model WeeklyReview {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  weekStart DateTime @db.Date
+
+  wentWell   String[]
+  slipped    String[]
+  nextFocus  String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, weekStart])
+  @@index([userId, weekStart])
+  @@map("weekly_review")
+}
+
+/// Milestones that mean something, unlocked once. No streaks that reset, and
+/// nothing that compares the user with anybody else.
+model Achievement {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  key        String
+  unlockedAt DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("achievement")
+}
+
+/* -------------------------------- reminders ------------------------------- */
+
+enum ReminderKind {
+  DEADLINE
+  ATTENDANCE
+  WORKOUT
+  WATER
+  WEEKLY_REVIEW
+  CUSTOM
+}
+
+enum ReminderChannel {
+  IN_APP
+  EMAIL
+  BOTH
+}
+
+/// Quiet hours, the daily cap and the email switch, in one place. Profile
+/// deliberately does not keep a second copy.
+model NotificationPrefs {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Hours 0-23. The range may cross midnight, which `isInQuietHours` handles.
+  quietHoursStart Int @default(22)
+  quietHoursEnd   Int @default(7)
+  /// The product sends at most this many a day. Three, not "as many as there
+  /// are things to say".
+  dailyCap Int @default(3)
+
+  emailEnabled Boolean @default(false)
+  timezone     String  @default("Asia/Kolkata")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notification_prefs")
+}
+
+model ReminderRule {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind    ReminderKind
+  enabled Boolean      @default(true)
+  /// How far ahead of the thing itself to send.
+  leadMinutes Int             @default(60)
+  channel     ReminderChannel @default(IN_APP)
+  /// Only for CUSTOM rules.
+  label String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, kind, label])
+  @@index([userId])
+  @@map("reminder_rule")
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind  ReminderKind @default(CUSTOM)
+  title String
+  body  String
+  link  String?
+
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notification")
+}
+
+/// The development outbox. With no Mailjet key configured the mailer writes
+/// here instead of sending, so the verification and reset flows are testable
+/// end to end without a real inbox.
+model DevEmail {
+  id String @id @default(cuid())
+
+  to      String
+  subject String
+  text    String
+  html    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([to, createdAt])
+  @@map("dev_email")
 }
 
 /* ---------------------------------- twin ---------------------------------- */
