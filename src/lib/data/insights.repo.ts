@@ -177,7 +177,7 @@ export async function gatherPulseInputs(
 
 /** The live pulse, for Home. */
 export async function getLivePulse(userId: string, now: Date): Promise<PulseResult> {
-  return computePulse(await gatherPulseInputs(userId, now), now);
+  return computePulse(await gatherPulseInputs(userId, now));
 }
 
 /**
@@ -189,7 +189,7 @@ export async function getLivePulse(userId: string, now: Date): Promise<PulseResu
  */
 export async function recordDailySnapshot(userId: string, date: Date): Promise<void> {
   const inputs = await gatherPulseInputs(userId, date);
-  const row = pulseSnapshotRow(inputs, date);
+  const row = pulseSnapshotRow(inputs);
 
   const day = new Date(date);
   day.setHours(0, 0, 0, 0);

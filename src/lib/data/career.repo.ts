@@ -109,16 +109,6 @@ export type CareerRepo = {
 export function careerRepoForUser(userId: string): CareerRepo {
   const prisma = getPrisma();
 
-  /** The goal the screen works with: the most recently created. */
-  async function currentGoalId(): Promise<string | null> {
-    const goal = await prisma.careerGoal.findFirst({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      select: { id: true },
-    });
-    return goal?.id ?? null;
-  }
-
   return {
     async getCareer(now = new Date()) {
       await connection();

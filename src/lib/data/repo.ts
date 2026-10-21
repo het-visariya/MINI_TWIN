@@ -23,6 +23,7 @@ import * as fixtures from "@/lib/data/fixtures";
 import { demoHealthRepo, healthRepoForUser } from "@/lib/data/health.repo";
 import { careerRepoForUser, demoCareerRepo } from "@/lib/data/career.repo";
 import { demoInsightsRepo, insightsRepoForUser } from "@/lib/data/insights.repo";
+import { demoRemindersRepo, remindersRepoForUser } from "@/lib/data/reminders.repo";
 import { demoFinanceRepo, financeRepoForUser } from "@/lib/data/finance.repo";
 import { demoNutritionRepo, nutritionRepoForUser } from "@/lib/data/nutrition.repo";
 import { getPrisma } from "@/lib/db";
@@ -382,6 +383,7 @@ export const getNutritionRepo = moduleRepo(nutritionRepoForUser, demoNutritionRe
 export const getFinanceRepo = moduleRepo(financeRepoForUser, demoFinanceRepo);
 export const getCareerRepo = moduleRepo(careerRepoForUser, demoCareerRepo);
 export const getInsightsRepo = moduleRepo(insightsRepoForUser, demoInsightsRepo);
+export const getRemindersRepo = moduleRepo(remindersRepoForUser, demoRemindersRepo);
 
 /* ------------------------------- row mapping ------------------------------ */
 

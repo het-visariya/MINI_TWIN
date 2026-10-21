@@ -223,7 +223,7 @@ function routineScore(input: NonNullable<PulseInputs["routine"]>): Score | null 
  * finances, which is not ours to decide. Null below two scores, because the
  * "mean" of one number is just that number wearing a different label.
  */
-export function computePulse(inputs: PulseInputs, _now: Date = new Date()): PulseResult {
+export function computePulse(inputs: PulseInputs): PulseResult {
   const scores = [
     inputs.academic ? academicScore(inputs.academic) : null,
     inputs.fitness ? fitnessScore(inputs.fitness) : null,
@@ -262,8 +262,8 @@ export function computePulse(inputs: PulseInputs, _now: Date = new Date()): Puls
  * trend, which reads a run of days. A zero day shows as a gap in the chart
  * rather than as a judgement, since `twinEvolution` plots what exists.
  */
-export function pulseSnapshotRow(inputs: PulseInputs, now: Date = new Date()) {
-  const { scores, momentum } = computePulse(inputs, now);
+export function pulseSnapshotRow(inputs: PulseInputs) {
+  const { scores, momentum } = computePulse(inputs);
   const find = (id: string) => scores.find((score) => score.id === id)?.value ?? 0;
 
   return {

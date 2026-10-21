@@ -65,6 +65,15 @@ import {
   type SnapshotRow,
 } from "@/lib/domain/calc/insights";
 import type { InsightsView } from "@/lib/data/insights.repo";
+import {
+  DEFAULT_RULES,
+  neutralCopy,
+  unreadCount,
+} from "@/lib/domain/calc/reminders";
+import type {
+  NotificationView,
+  RemindersView,
+} from "@/lib/data/reminders.repo";
 
 /** Days back from `now`, as a yyyy-mm-dd string. */
 function daysAgo(now: Date, days: number): string {
@@ -653,4 +662,65 @@ export function insightsView(now: Date): InsightsView {
 
 function clampScore(value: number): number {
   return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                  reminders                                 */
+/* -------------------------------------------------------------------------- */
+
+export function remindersView(now: Date): RemindersView {
+  const hoursAgo = (hours: number) =>
+    new Date(now.getTime() - hours * 3_600_000).toISOString();
+
+  /* Two of the three allowed for the day are already used, so the demo shows
+     the cap as a live number rather than an abstract setting. */
+  const notifications: NotificationView[] = [
+    {
+      id: "d-n-1",
+      kind: "DEADLINE",
+      ...neutralCopy("DEADLINE"),
+      link: "/productivity",
+      readAt: null,
+      createdAt: hoursAgo(3),
+    },
+    {
+      id: "d-n-2",
+      kind: "WEEKLY_REVIEW",
+      ...neutralCopy("WEEKLY_REVIEW"),
+      link: "/insights",
+      readAt: null,
+      createdAt: hoursAgo(26),
+    },
+    {
+      id: "d-n-3",
+      kind: "ATTENDANCE",
+      ...neutralCopy("ATTENDANCE"),
+      link: "/academic",
+      readAt: hoursAgo(40),
+      createdAt: hoursAgo(49),
+    },
+  ];
+
+  return {
+    prefs: {
+      quietHoursStart: 23,
+      quietHoursEnd: 7,
+      dailyCap: 3,
+      emailEnabled: false,
+      timezone: "Asia/Kolkata",
+    },
+    rules: DEFAULT_RULES.map((rule) => ({
+      id: `d-rule-${rule.kind}`,
+      kind: rule.kind,
+      enabled: rule.enabled,
+      leadMinutes: rule.leadMinutes,
+      channel: rule.channel,
+      label: null,
+    })),
+    notifications,
+    unread: unreadCount(notifications.map((row) => ({ readAt: row.readAt }))),
+    sentToday: 2,
+    /* Nothing in the outbox: the demo sends no email at all. */
+    outbox: [],
+  };
 }

@@ -59,7 +59,7 @@ export const navGroups: NavGroup[] = [
     label: "Twin",
     items: [
       { href: "/twin", label: "Ask my twin", icon: Sparkles },
-      { href: "/reminders", label: "Reminders", icon: Bell, upcoming: true },
+      { href: "/reminders", label: "Reminders", icon: Bell },
       { href: "/settings", label: "Privacy & control", icon: Settings, upcoming: true },
     ],
   },
