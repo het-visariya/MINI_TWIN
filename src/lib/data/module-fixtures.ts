@@ -74,6 +74,7 @@ import type {
   NotificationView,
   RemindersView,
 } from "@/lib/data/reminders.repo";
+import type { AccountView } from "@/lib/data/account.repo";
 
 /** Days back from `now`, as a yyyy-mm-dd string. */
 function daysAgo(now: Date, days: number): string {
@@ -722,5 +723,63 @@ export function remindersView(now: Date): RemindersView {
     sentToday: 2,
     /* Nothing in the outbox: the demo sends no email at all. */
     outbox: [],
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                             privacy & control                              */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The demo's account view.
+ *
+ * The consent log has one entry so the table is not empty, and it describes
+ * data *categories* rather than content — which is what the real log stores
+ * too. Sessions show one, the current one, because a demo visitor has no
+ * other devices signed in.
+ */
+export function accountView(): AccountView {
+  return {
+    profile: {
+      name: "Demo twin",
+      email: "demo@example.com",
+      lifeStage: "COLLEGE",
+      regreterTone: "BALANCED",
+      aiConsentAt: null,
+      allowHealthDataToAi: false,
+      allowMoneyDataToAi: false,
+    },
+
+    consentLog: [
+      {
+        id: "d-consent-1",
+        feature: "twin_chat",
+        categories: ["Timetable", "Tasks and deadlines"],
+        summary:
+          "Asked what to do first today. Sent this week's commitments and open tasks — no health or money data.",
+        model: null,
+        granted: true,
+        createdAt: new Date(Date.now() - 2 * 86_400_000).toISOString(),
+      },
+    ],
+
+    sessions: [
+      {
+        id: "d-session-1",
+        createdAt: new Date(Date.now() - 3_600_000).toISOString(),
+        expiresAt: new Date(Date.now() + 29 * 86_400_000).toISOString(),
+        ipAddress: null,
+        userAgent: "This browser",
+        current: true,
+      },
+    ],
+
+    dataSummary: [
+      { label: "Subjects", count: 5 },
+      { label: "Tasks", count: 12 },
+      { label: "Workout sessions", count: 11 },
+      { label: "Expenses", count: 13 },
+      { label: "Daily snapshots", count: 26 },
+    ],
   };
 }

@@ -17,12 +17,20 @@
  */
 
 import { redirect } from "next/navigation";
-import { connection } from "next/server";
+import { after, connection } from "next/server";
 
 import * as fixtures from "@/lib/data/fixtures";
 import { demoHealthRepo, healthRepoForUser } from "@/lib/data/health.repo";
+import { accountRepoForUser, demoAccountRepo } from "@/lib/data/account.repo";
 import { careerRepoForUser, demoCareerRepo } from "@/lib/data/career.repo";
-import { demoInsightsRepo, insightsRepoForUser } from "@/lib/data/insights.repo";
+import {
+  demoInsightsRepo,
+  getLivePulse,
+  insightsRepoForUser,
+  needsSnapshot,
+  recordDailySnapshot,
+  syncAchievements,
+} from "@/lib/data/insights.repo";
 import { demoRemindersRepo, remindersRepoForUser } from "@/lib/data/reminders.repo";
 import { demoFinanceRepo, financeRepoForUser } from "@/lib/data/finance.repo";
 import { demoNutritionRepo, nutritionRepoForUser } from "@/lib/data/nutrition.repo";
@@ -103,7 +111,9 @@ export function forUser(userId: string): Repo {
     async getTwinSnapshot() {
       await connection();
 
-      const [profile, commitments, tasks] = await Promise.all([
+      const now = new Date();
+
+      const [profile, commitments, tasks, pulse] = await Promise.all([
         prisma.profile.findUnique({ where: { userId } }),
         prisma.commitment.findMany({
           where: { userId, ...todayRange() },
@@ -114,20 +124,56 @@ export function forUser(userId: string): Repo {
           orderBy: [{ due: "asc" }, { createdAt: "asc" }],
           take: 50,
         }),
+        /* The same engine the Insights sparklines are built from. Home renders
+           it live; the snapshot job stores it. One implementation. */
+        getLivePulse(userId, now),
       ]);
 
-      if (commitments.length === 0 && tasks.length === 0) {
+      /*
+       * Today's snapshot, written after the response rather than during the
+       * render.
+       *
+       * The specification asks for it to happen lazily on the first Home visit
+       * of the day, and `after()` is the honest way to do that: a render may be
+       * retried or discarded, so a write inside one can run twice or not at
+       * all. This runs once, after the HTML has gone.
+       */
+      after(async () => {
+        try {
+          if (await needsSnapshot(userId, now)) {
+            await recordDailySnapshot(userId, now);
+            await syncAchievements(userId, now);
+          }
+        } catch (error) {
+          /* Never fails the page: the snapshot is for tomorrow's trend, and
+             today's Home is already rendered from live data. */
+          console.error(
+            `[snapshot] ${error instanceof Error ? error.message : "unknown error"}`,
+          );
+        }
+      });
+
+      if (commitments.length === 0 && tasks.length === 0 && pulse.scores.length === 0) {
         /* A brand-new account. The screen gets a real, honest empty snapshot
            rather than invented numbers — Home's empty state teaches from it. */
         return emptySnapshot(greetingForNow());
       }
 
-      return snapshotFromRows({
+      const base = snapshotFromRows({
         greeting: greetingForNow(),
         commitments: commitments.map(toCommitment),
         tasks: tasks.map(toTask),
         traits: (profile?.traits ?? {}) as Record<string, unknown>,
       });
+
+      return {
+        ...base,
+        pulse: pulse.scores,
+        /* Momentum stays the honest placeholder until two areas can be
+           measured — `computePulse` returns null rather than averaging one
+           number and calling it a trend. */
+        momentum: pulse.momentum ?? base.momentum,
+      };
     },
 
     async getAcademic() {
@@ -384,6 +430,7 @@ export const getFinanceRepo = moduleRepo(financeRepoForUser, demoFinanceRepo);
 export const getCareerRepo = moduleRepo(careerRepoForUser, demoCareerRepo);
 export const getInsightsRepo = moduleRepo(insightsRepoForUser, demoInsightsRepo);
 export const getRemindersRepo = moduleRepo(remindersRepoForUser, demoRemindersRepo);
+export const getAccountRepo = moduleRepo(accountRepoForUser, demoAccountRepo);
 
 /* ------------------------------- row mapping ------------------------------ */
 

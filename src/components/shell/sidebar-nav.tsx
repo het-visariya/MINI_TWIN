@@ -35,11 +35,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   >
                     <item.icon className="size-4 shrink-0" aria-hidden />
                     <span className="truncate">{item.label}</span>
-                    {item.upcoming && (
-                      <span className="text-muted-foreground bg-muted ml-auto shrink-0 rounded px-1.5 py-0.5 text-2xs">
-                        Soon
-                      </span>
-                    )}
                   </Link>
                 </li>
               );

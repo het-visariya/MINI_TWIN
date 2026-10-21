@@ -19,8 +19,6 @@ export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Modules whose screens arrive in phase 2 are marked, never hidden. */
-  upcoming?: boolean;
 };
 
 export type NavGroup = {
@@ -28,7 +26,7 @@ export type NavGroup = {
   items: NavItem[];
 };
 
-/** The 16 modules, grouped the way the user thinks about their day. */
+/** Every module, grouped the way the user thinks about their day. */
 export const navGroups: NavGroup[] = [
   {
     label: "Today",
@@ -60,7 +58,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/twin", label: "Ask my twin", icon: Sparkles },
       { href: "/reminders", label: "Reminders", icon: Bell },
-      { href: "/settings", label: "Privacy & control", icon: Settings, upcoming: true },
+      { href: "/settings", label: "Privacy & control", icon: Settings },
     ],
   },
 ];
