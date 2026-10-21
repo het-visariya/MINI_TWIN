@@ -21,6 +21,7 @@ import { connection } from "next/server";
 
 import * as fixtures from "@/lib/data/fixtures";
 import { demoHealthRepo, healthRepoForUser } from "@/lib/data/health.repo";
+import { demoNutritionRepo, nutritionRepoForUser } from "@/lib/data/nutrition.repo";
 import { getPrisma } from "@/lib/db";
 import { getViewer, type Viewer } from "@/lib/auth/session";
 import { toDomain, toPriority, toSubject, toTask } from "@/lib/data/map";
@@ -374,6 +375,7 @@ function moduleRepo<T>(forUserImpl: (userId: string) => T, demoImpl: T) {
 }
 
 export const getHealthRepo = moduleRepo(healthRepoForUser, demoHealthRepo);
+export const getNutritionRepo = moduleRepo(nutritionRepoForUser, demoNutritionRepo);
 
 /* ------------------------------- row mapping ------------------------------ */
 
