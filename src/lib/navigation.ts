@@ -52,7 +52,7 @@ export const navGroups: NavGroup[] = [
       { href: "/health", label: "Health", icon: Dumbbell },
       { href: "/nutrition", label: "Nutrition", icon: Salad },
       { href: "/finance", label: "Finance", icon: Wallet },
-      { href: "/career", label: "Career", icon: Briefcase, upcoming: true },
+      { href: "/career", label: "Career", icon: Briefcase },
     ],
   },
   {

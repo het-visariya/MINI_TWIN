@@ -48,6 +48,14 @@ import {
   spendByCategory,
 } from "@/lib/domain/calc/finance";
 import type { ExpenseView, FinanceView } from "@/lib/data/finance.repo";
+import {
+  daysToTarget,
+  placementProgress,
+  roadmapProgress,
+  skillGap,
+} from "@/lib/domain/calc/career";
+import { findRoleTemplate } from "@/lib/domain/data/role-templates";
+import type { CareerView } from "@/lib/data/career.repo";
 
 /** Days back from `now`, as a yyyy-mm-dd string. */
 function daysAgo(now: Date, days: number): string {
@@ -448,5 +456,105 @@ export function financeView(now: Date): FinanceView {
     /* Always false in the demo: there is no market-data key, and showing a
        live price that is not live would misrepresent the product. */
     livePrices: false,
+  };
+}
+
+/* -------------------------------------------------------------------------- */
+/*                                   career                                   */
+/* -------------------------------------------------------------------------- */
+
+export function careerView(now: Date): CareerView {
+  const template = findRoleTemplate("backend")!;
+
+  const requirements = template.skills.map((skill, index) => ({
+    id: `d-req-${index}`,
+    skill: skill.skill,
+    requiredLevel: skill.requiredLevel,
+  }));
+
+  /* Partway there, with real gaps left. A demo showing 95% readiness teaches
+     nothing about what the chart is for. */
+  const selfRatings: Record<string, number> = {
+    "A backend language (Java, Go, Python or Node)": 3,
+    "SQL and schema design": 3,
+    "REST and API design": 2,
+    Git: 4,
+    Testing: 1,
+    "Linux and the shell": 2,
+    "Caching and queues": 1,
+    "Data structures and algorithms": 3,
+  };
+
+  const skills = Object.entries(selfRatings).map(([skill, level], index) => ({
+    id: `d-skill-${index}`,
+    skill,
+    level,
+    evidence:
+      skill === "Git"
+        ? "Used it on every project since first year, including rebases and conflict fixes."
+        : null,
+  }));
+
+  const targetDate = new Date(now.getFullYear() + 1, 4, 1);
+
+  const roadmap = [
+    { id: "d-rm-1", title: "Finish the DBMS indexing chapter and write notes", dueDate: daysAgo(now, -9), done: true, order: 0 },
+    { id: "d-rm-2", title: "Build a REST API with auth and tests", dueDate: daysAgo(now, -24), done: false, order: 1 },
+    { id: "d-rm-3", title: "Learn Docker well enough to containerise it", dueDate: daysAgo(now, -45), done: false, order: 2 },
+    { id: "d-rm-4", title: "Solve 50 more DSA problems, medium and up", dueDate: null, done: false, order: 3 },
+    /* One overdue on purpose, so the "behind" state is visible in the demo. */
+    { id: "d-rm-5", title: "Write up the hostel-mess project as a case study", dueDate: daysAgo(now, 6), done: false, order: 4 },
+  ];
+
+  return {
+    goal: {
+      id: "d-goal-1",
+      targetRole: "Backend developer",
+      targetDate: isoDate(targetDate),
+      daysAway: daysToTarget(targetDate, now),
+      requirements,
+    },
+
+    skills,
+    gap: skillGap(requirements, skills),
+
+    certifications: [
+      {
+        id: "d-cert-1",
+        name: "Relational databases, course certificate",
+        issuer: "NPTEL",
+        date: daysAgo(now, 120),
+        url: null,
+      },
+    ],
+
+    projects: [
+      {
+        id: "d-proj-1",
+        title: "Hostel mess menu tracker",
+        description:
+          "A small app the hostel actually used for a semester. Node, Postgres, and a weekly cron that mailed the menu.",
+        skills: ["Node", "Postgres", "Cron"],
+        url: null,
+        status: "SHIPPED",
+      },
+      {
+        id: "d-proj-2",
+        title: "Attendance predictor",
+        description: "Works out how many classes can still be missed. Half built.",
+        skills: ["Python", "Pandas"],
+        url: null,
+        status: "BUILDING",
+      },
+    ],
+
+    placement: {
+      stage: "PREPARING",
+      notes: "Campus placements open in August. Two companies shortlist on DSA first.",
+      progress: placementProgress("PREPARING"),
+    },
+
+    roadmap,
+    roadmapProgress: roadmapProgress(roadmap, now),
   };
 }
