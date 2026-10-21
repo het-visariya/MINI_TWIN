@@ -20,6 +20,7 @@ import { redirect } from "next/navigation";
 import { connection } from "next/server";
 
 import * as fixtures from "@/lib/data/fixtures";
+import { demoHealthRepo, healthRepoForUser } from "@/lib/data/health.repo";
 import { getPrisma } from "@/lib/db";
 import { getViewer, type Viewer } from "@/lib/auth/session";
 import { toDomain, toPriority, toSubject, toTask } from "@/lib/data/map";
@@ -340,6 +341,39 @@ export async function getRepo(viewer?: Viewer): Promise<Repo> {
    */
   redirect("/login");
 }
+
+/* -------------------------------------------------------------------------- */
+/*                               module repos                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The per-module boundaries.
+ *
+ * Each module owns its own repo file rather than adding another forty methods
+ * to the `Repo` object above, which would have become unreadable. They share
+ * this resolver, so the one rule that matters is enforced in a single place:
+ * a user gets a repo bound to their own id, a demo visitor gets the fixtures,
+ * and an anonymous request is redirected before any query runs.
+ *
+ * Writes go the other way round. A server action resolves the writer itself
+ * (`requireWriter`) and constructs the module repo directly, because an action
+ * must not redirect — it has no page to redirect to.
+ */
+function moduleRepo<T>(forUserImpl: (userId: string) => T, demoImpl: T) {
+  return async function resolve(viewer?: Viewer): Promise<T> {
+    const resolved = viewer ?? (await getViewer());
+
+    if (resolved.kind === "user") return forUserImpl(resolved.userId);
+    if (resolved.kind === "demo") return demoImpl;
+
+    /* Redirects rather than throws, for the same reason getRepo does: a page
+       rendering concurrently with the layout must answer with a 307 to
+       /login, not a 200 carrying an error boundary. */
+    redirect("/login");
+  };
+}
+
+export const getHealthRepo = moduleRepo(healthRepoForUser, demoHealthRepo);
 
 /* ------------------------------- row mapping ------------------------------ */
 

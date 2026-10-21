@@ -125,6 +125,34 @@ export async function requireUser(): Promise<{ userId: string; profile: Profile 
   return { userId: viewer.userId, profile: viewer.profile };
 }
 
+/**
+ * For server actions that write.
+ *
+ * Unlike `requireUser`, this one *allows* demo mode — because the demo has to
+ * behave like the real thing. A demo visitor submits a form, sees the row
+ * appear, and nothing is written: the module's demo repo turns the write into
+ * a no-op that returns the object the UI expected. Refusing demo here instead
+ * would make every form in the demo show an error, which teaches the visitor
+ * nothing about the product.
+ *
+ * Anonymous still throws. An action has no page to redirect to.
+ */
+export type Writer =
+  | { kind: "user"; userId: string; profile: Profile }
+  | { kind: "demo" };
+
+export async function requireWriter(): Promise<Writer> {
+  const viewer = await getViewer();
+
+  if (viewer.kind === "user") {
+    return { kind: "user", userId: viewer.userId, profile: viewer.profile };
+  }
+
+  if (viewer.kind === "demo") return { kind: "demo" };
+
+  throw new Error("Not signed in.");
+}
+
 /** Clears the gate cookie once it has been spent. */
 export async function clearDobCookie() {
   const store = await cookies();
