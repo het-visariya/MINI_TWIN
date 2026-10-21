@@ -218,9 +218,19 @@ const RotatingText = forwardRef<RotatingTextRef, RotatingTextProps>((props, ref)
 
   const order = useMemo(() => {
     const total = elements.reduce((sum, word) => sum + word.characters.length, 0);
-    const shuffled = Array.from({ length: total }, (_, i) => i).sort(() => Math.random() - 0.5);
+    /*
+     * Seeded, not Math.random().
+     *
+     * This runs during render. With `cacheComponents` on, Next refuses an
+     * unstable value in a prerender outright — but the deeper problem is that
+     * the server and the client would each shuffle differently, so the
+     * stagger delays would not match and React would report a hydration
+     * mismatch. Seeding from the text makes the order arbitrary-looking but
+     * identical on both sides, which is all this needs to be.
+     */
+    const shuffled = seededShuffle(total, activeIndex);
     return { total, shuffled };
-  }, [elements]);
+  }, [elements, activeIndex]);
 
   const getStaggerDelay = (index: number): number => {
     const { total, shuffled } = order;
@@ -394,3 +404,32 @@ const RotatingText = forwardRef<RotatingTextRef, RotatingTextProps>((props, ref)
 
 RotatingText.displayName = 'RotatingText';
 export default RotatingText;
+
+/**
+ * A deterministic shuffle: mulberry32 over the indices 0..total-1.
+ *
+ * Any seeded generator would do; this one is four lines and has no
+ * dependency. The seed includes the active index so successive rotations do
+ * not all stagger in the same order.
+ */
+function seededShuffle(total: number, seed: number): number[] {
+  const indices = Array.from({ length: total }, (_, i) => i);
+
+  let state = (seed + 1) * 0x6d2b79f5;
+  const next = () => {
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+
+  /* Fisher-Yates, so every permutation is equally likely — unlike the
+     `sort(() => Math.random() - 0.5)` this replaces, which is biased. */
+  for (let i = total - 1; i > 0; i -= 1) {
+    const j = Math.floor(next() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  return indices;
+}

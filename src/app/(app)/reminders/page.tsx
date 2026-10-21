@@ -1,5 +1,6 @@
 import { BellOff } from "lucide-react";
 import type { Metadata } from "next";
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import {
@@ -34,6 +35,18 @@ export default function RemindersPage() {
 }
 
 async function RemindersContent() {
+  /*
+   * Opt into request-time rendering *before* reading the clock.
+   *
+   * With `cacheComponents` on, Next prerenders what it can, and `new Date()`
+   * in a prerender is a value that would be frozen into the HTML — so it
+   * refuses it outright. The repo awaits `connection()` too, but that happens
+   * after this component has already called the constructor, which is too
+   * late. One line here, and the page is honestly dynamic: "today" and
+   * "good evening" are only true for one request anyway.
+   */
+  await connection();
+
   const repo = await getRemindersRepo();
   const now = new Date();
   const view = await repo.getReminders(now);
