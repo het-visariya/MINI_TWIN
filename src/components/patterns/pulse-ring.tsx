@@ -4,7 +4,7 @@ import { TrendingDown, TrendingUp } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 
 import { ScoreExplainer } from "@/components/patterns/score-card";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { Score } from "@/lib/domain/types";
 
 /**

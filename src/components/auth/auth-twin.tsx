@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 import { TwinVisual } from "@/components/twin/twin-visual";
 import { useTwinState } from "@/components/twin/twin-state";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 /**
  * The twin on the auth screens.

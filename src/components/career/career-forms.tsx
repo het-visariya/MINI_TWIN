@@ -20,7 +20,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { PLACEMENT_STAGES, type PlacementStage } from "@/lib/domain/calc/career";
 import { ALL_TEMPLATE_SKILLS, ROLE_TEMPLATES } from "@/lib/domain/data/role-templates";
 import type { ActionResult } from "@/lib/validation/shared";

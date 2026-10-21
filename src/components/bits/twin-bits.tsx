@@ -13,7 +13,7 @@ import BitsRotatingText from "@/components/bits/RotatingText";
 import BitsSpotlightCard from "@/components/bits/SpotlightCard";
 import BitsStarBorder from "@/components/bits/StarBorder";
 import { useBitsTheme } from "@/components/bits/use-bits-theme";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 /**
  * The curated React Bits set, wrapped once.

@@ -1,5 +1,5 @@
 import { StatusChip } from "@/components/patterns/status-chip";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 /**
  * The wrapper for anything projected rather than measured.

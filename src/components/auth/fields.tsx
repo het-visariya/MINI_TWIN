@@ -6,7 +6,7 @@ import { useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 /** One error line, announced to screen readers as it appears. */
 export function FieldError({ children }: { children?: string }) {

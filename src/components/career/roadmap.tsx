@@ -9,7 +9,7 @@ import { DeleteButton } from "@/components/patterns/delete-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { reorder } from "@/lib/domain/calc/career";
 import type { RoadmapItemView } from "@/lib/data/career.repo";
 import type { ActionResult } from "@/lib/validation/shared";

@@ -14,7 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { mobileNav } from "@/lib/navigation";
 
 /** Five destinations, plus "More" for everything else. */

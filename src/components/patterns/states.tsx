@@ -3,7 +3,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 /**
  * The states every screen must declare. Defined once so no screen ships with

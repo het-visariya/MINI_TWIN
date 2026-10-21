@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import { ProgressRing, Sparkline } from "@/components/patterns/charts";
 import { PageHeader } from "@/components/patterns/page-header";
 import { GridSkeleton } from "@/components/patterns/states";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { getInsightsRepo } from "@/lib/data/repo";
 import { LIFE_GRAPH_MIN_DAYS } from "@/lib/domain/calc/insights";
 import type { InsightsView } from "@/lib/data/insights.repo";

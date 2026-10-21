@@ -111,6 +111,14 @@ export type HealthRepo = {
   logSleep(input: SleepLogInput): Promise<void>;
   logWater(input: WaterLogInput): Promise<void>;
   saveMood(input: MoodCheckinInput): Promise<void>;
+  /**
+   * The weight goal, for adults only.
+   *
+   * Takes the already-validated target: the age rule is enforced by
+   * `weightGoalSchema` in the action, using the age read from Profile on the
+   * server. This function stores what it is given.
+   */
+  saveWeightGoal(targetKg: number, byDate: Date | null): Promise<void>;
 };
 
 /** How far back the module reads. Enough for an eight-week volume chart. */
@@ -339,6 +347,30 @@ export function healthRepoForUser(userId: string): HealthRepo {
       });
     },
 
+    /**
+     * Stored in `Profile.traits`, because a goal is a stated preference rather
+     * than a measurement — the same place onboarding's answers live.
+     */
+    async saveWeightGoal(targetKg, byDate) {
+      const profile = await prisma.profile.findUnique({
+        where: { userId },
+        select: { traits: true },
+      });
+
+      const traits = (profile?.traits ?? {}) as Record<string, unknown>;
+
+      await prisma.profile.update({
+        where: { userId },
+        data: {
+          traits: {
+            ...traits,
+            weightGoalKg: targetKg,
+            weightGoalBy: byDate ? byDate.toISOString() : null,
+          },
+        },
+      });
+    },
+
     /** One check-in per day. A second one edits the first rather than stacking. */
     async saveMood(input) {
       await prisma.moodCheckin.upsert({
@@ -377,6 +409,7 @@ export const demoHealthRepo: HealthRepo = {
   async logSleep() {},
   async logWater() {},
   async saveMood() {},
+  async saveWeightGoal() {},
 };
 
 /* -------------------------------------------------------------------------- */

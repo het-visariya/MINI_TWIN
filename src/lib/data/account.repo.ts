@@ -59,6 +59,20 @@ export type AccountView = {
 
 export type AccountRepo = {
   getAccount(currentSessionToken?: string): Promise<AccountView>;
+  savePreferences(input: {
+    name: string;
+    lifeStage: "SCHOOL" | "COLLEGE" | "OTHER" | null;
+    regreterTone: "GENTLE" | "BALANCED" | "DIRECT" | "NO_MERCY";
+  }): Promise<void>;
+  saveAiConsent(input: {
+    aiConsent: boolean;
+    allowHealthDataToAi: boolean;
+    allowMoneyDataToAi: boolean;
+  }): Promise<void>;
+  /** Everything except the session making the request. */
+  signOutOtherSessions(currentSessionToken?: string): Promise<void>;
+  /** Deletes the User row and lets the schema's cascades do the rest. */
+  deleteAccount(): Promise<void>;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -247,6 +261,55 @@ export function accountRepoForUser(userId: string): AccountRepo {
         dataSummary: await dataSummaryFor(userId),
       };
     },
+
+    async savePreferences(input) {
+      /* One transaction: the display name lives on User and the rest on
+         Profile, and a half-applied save would leave the two disagreeing
+         about who the user is. */
+      await prisma.$transaction([
+        prisma.user.update({ where: { id: userId }, data: { name: input.name } }),
+        prisma.profile.update({
+          where: { userId },
+          data: { lifeStage: input.lifeStage, regreterTone: input.regreterTone },
+        }),
+      ]);
+    },
+
+    /**
+     * Revoking consent clears `aiConsentAt` rather than setting a flag, which
+     * is what makes the twin ask again before its next call instead of
+     * remembering a yes from last month.
+     */
+    async saveAiConsent(input) {
+      await prisma.profile.update({
+        where: { userId },
+        data: {
+          aiConsentAt: input.aiConsent ? new Date() : null,
+          allowHealthDataToAi: input.allowHealthDataToAi,
+          allowMoneyDataToAi: input.allowMoneyDataToAi,
+        },
+      });
+    },
+
+    async signOutOtherSessions(currentSessionToken) {
+      await prisma.session.deleteMany({
+        where: {
+          userId,
+          ...(currentSessionToken ? { token: { not: currentSessionToken } } : {}),
+        },
+      });
+    },
+
+    /**
+     * The one irreversible write in the product.
+     *
+     * Deletes the `User` row only. Every domain table carries a `userId` with
+     * `onDelete: Cascade`, so the deletion is complete by construction rather
+     * than by anyone remembering to add a new table to a list here.
+     */
+    async deleteAccount() {
+      await prisma.user.delete({ where: { id: userId } });
+    },
   };
 }
 
@@ -258,5 +321,16 @@ export const demoAccountRepo: AccountRepo = {
   async getAccount() {
     await connection();
     return accountView();
+  },
+
+  async savePreferences() {},
+  async saveAiConsent() {},
+  async signOutOtherSessions() {},
+
+  /* Refused rather than no-opped. Every other demo write is discarded
+     silently because the UI should behave normally, but "your account was
+     deleted" would be a lie about something that matters. */
+  async deleteAccount() {
+    throw new Error("There is no account to delete in the demo.");
   },
 };

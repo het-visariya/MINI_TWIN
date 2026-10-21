@@ -1,6 +1,6 @@
 import { Clock } from "lucide-react";
 
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { TimeBudget } from "@/lib/domain/types";
 
 const formatHours = (hours: number) => {

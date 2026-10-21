@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { ConsentSheet } from "@/components/patterns/consent-sheet";
 import { Button } from "@/components/ui/button";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { PlanProposal, TwinMessage as Message } from "@/lib/domain/types";
 
 /** The three-dot indicator shown while the twin is composing. */

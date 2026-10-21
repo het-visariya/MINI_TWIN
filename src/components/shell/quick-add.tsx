@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { EXPENSE_CATEGORIES } from "@/lib/domain/calc/finance";
 import type { ActionResult } from "@/lib/validation/shared";
 

@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/lib/validation/shared";
 
 /**

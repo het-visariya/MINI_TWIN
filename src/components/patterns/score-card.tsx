@@ -9,7 +9,7 @@ import { StatusChip } from "@/components/patterns/status-chip";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { Score } from "@/lib/domain/types";
 
 /**

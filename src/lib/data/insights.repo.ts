@@ -201,20 +201,31 @@ export async function recordDailySnapshot(userId: string, date: Date): Promise<v
   });
 }
 
-/** Every user, for the cron endpoint. Returns how many rows were written. */
-export async function recordSnapshotsForAllUsers(date: Date): Promise<number> {
+/**
+ * The whole daily run, for the cron endpoint.
+ *
+ * Snapshot, then the week's stored review, then the milestones — in that
+ * order, because the last two read the snapshot the first one just wrote.
+ *
+ * Sequential rather than parallel: this runs once a day on a small connection
+ * pool, and a hundred concurrent transactions to save a few seconds is the
+ * wrong trade.
+ */
+export async function runDailySnapshotForAllUsers(
+  date: Date,
+): Promise<{ users: number; snapshots: number }> {
   const users = await getPrisma().user.findMany({ select: { id: true } });
 
-  let written = 0;
+  let snapshots = 0;
+
   for (const user of users) {
-    /* Sequential rather than parallel: this runs once a day on a small
-       connection pool, and a hundred concurrent transactions to save a few
-       seconds is the wrong trade. */
     await recordDailySnapshot(user.id, date);
-    written += 1;
+    await recordWeeklyReview(user.id, date);
+    await syncAchievements(user.id, date);
+    snapshots += 1;
   }
 
-  return written;
+  return { users: users.length, snapshots };
 }
 
 /**

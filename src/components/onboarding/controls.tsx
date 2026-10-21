@@ -5,7 +5,7 @@ import { useId, useState } from "react";
 import { FieldError } from "@/components/auth/fields";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 /**
  * The four controls the wizard needs, so each step is a list of questions

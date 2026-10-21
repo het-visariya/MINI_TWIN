@@ -8,7 +8,7 @@ import { DomainIcon } from "@/components/patterns/domain-icon";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { Priority, Task } from "@/lib/domain/types";
 
 const priorityTone: Record<Priority, string> = {

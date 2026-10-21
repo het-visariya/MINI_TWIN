@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/lib/validation/shared";
 
 const SCALE = [1, 2, 3, 4, 5] as const;

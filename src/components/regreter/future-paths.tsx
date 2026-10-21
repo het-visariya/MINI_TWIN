@@ -6,7 +6,7 @@ import { SimulationFrame } from "@/components/patterns/simulation-frame";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { ScenarioPath, Simulation } from "@/lib/domain/types";
 
 const dials = [

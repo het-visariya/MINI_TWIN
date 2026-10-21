@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { DomainIcon } from "@/components/patterns/domain-icon";
 import { Button } from "@/components/ui/button";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { Consequence, Effect } from "@/lib/domain/types";
 
 const directionIcon = {

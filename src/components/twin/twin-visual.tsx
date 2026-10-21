@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { TwinFallback } from "@/components/twin/twin-fallback";
 import { twinStateLabel, useTwinState } from "@/components/twin/twin-state";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 const TwinScene = dynamic(() => import("@/components/twin/twin-scene"), {
   ssr: false,
@@ -113,8 +113,24 @@ export function TwinVisual({
 }) {
   const { state, intensity, animationEnabled } = useTwinState();
   const container = useRef<HTMLDivElement>(null);
-  const canvasAllowed = useCanvasAllowed(animationEnabled) && !paused;
+
+  /* Called unconditionally — the dock's exclusion is applied to the result,
+     not to the call, so the hook order never changes between renders. */
+  const canvasCapable = useCanvasAllowed(animationEnabled);
   const active = useFrameLoopActive(container) && !paused;
+
+  /*
+   * One WebGL context on screen, ever.
+   *
+   * The dock sits in the app shell header, so it is present on every
+   * authenticated page — including Home, which renders the hero twin. Two
+   * canvases then mount at once and the second gets a context the browser may
+   * refuse or evict, which is what renders as a flat white square.
+   *
+   * So the dock is never a canvas. It is a 36px avatar: the particle figure is
+   * indistinguishable from the SVG at that size, and the SVG costs nothing.
+   */
+  const canvasAllowed = size !== "dock" && canvasCapable && !paused;
 
   const label = `Your twin: ${twinStateLabel[state]}`;
 

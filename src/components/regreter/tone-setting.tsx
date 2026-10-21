@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { RegreterTone } from "@/lib/domain/types";
 
 const tones: { value: RegreterTone; label: string; sample: string }[] = [

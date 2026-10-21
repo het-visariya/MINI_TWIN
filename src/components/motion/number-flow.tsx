@@ -4,7 +4,7 @@ import { animate, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 import { duration, easeTwin } from "@/lib/design/tokens";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 type NumberFlowProps = {
   value: number;

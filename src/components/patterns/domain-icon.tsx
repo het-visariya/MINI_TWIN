@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { Domain } from "@/lib/design/tokens";
 
 const icons: Record<Domain, LucideIcon> = {

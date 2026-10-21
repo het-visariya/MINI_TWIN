@@ -11,7 +11,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { Conflict } from "@/lib/domain/types";
 
 /**

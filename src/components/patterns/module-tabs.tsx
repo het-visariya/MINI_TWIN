@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 /**
  * Tabs for a module whose panels are rendered on the server.

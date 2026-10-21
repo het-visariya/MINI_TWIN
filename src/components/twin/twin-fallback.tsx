@@ -1,4 +1,4 @@
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 import { buildTwinPoints } from "@/components/twin/twin-points";
 import type { TwinState } from "@/lib/domain/types";

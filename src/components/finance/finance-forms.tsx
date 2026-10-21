@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { EXPENSE_CATEGORIES, fromMinor } from "@/lib/domain/calc/finance";
 import type { ActionResult } from "@/lib/validation/shared";
 

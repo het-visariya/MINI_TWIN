@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { REMINDER_LABELS, type ReminderKind } from "@/lib/domain/calc/reminders";
 import type { RuleView } from "@/lib/data/reminders.repo";
 import type { ActionResult } from "@/lib/validation/shared";

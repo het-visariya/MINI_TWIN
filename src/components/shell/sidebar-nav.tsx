@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { navGroups } from "@/lib/navigation";
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {

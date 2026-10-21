@@ -17,7 +17,6 @@
 import { revalidatePath } from "next/cache";
 
 import { requireWriter } from "@/lib/auth/session";
-import { getPrisma } from "@/lib/db";
 import { demoHealthRepo, healthRepoForUser, type HealthRepo } from "@/lib/data/health.repo";
 import { ageYears as toAgeYears } from "@/lib/domain/calc/health";
 import {
@@ -165,23 +164,18 @@ export async function saveWeightGoal(formData: FormData): Promise<ActionResult> 
       return { ok: true, data: undefined };
     }
 
+    /* The age comes from the Profile row the age gate wrote, read here on the
+       server. The client never supplies it, so a hand-written POST claiming to
+       be 25 is refused on the same rule as the hidden form control. */
     const age = toAgeYears(writer.profile.dob, new Date());
 
     const parsed = weightGoalSchema(age).safeParse(formDataToObject(formData));
     if (!parsed.success) return invalid(parsed.error);
 
-    const traits = (writer.profile.traits ?? {}) as Record<string, unknown>;
-
-    await getPrisma().profile.update({
-      where: { userId: writer.userId },
-      data: {
-        traits: {
-          ...traits,
-          weightGoalKg: parsed.data.targetKg,
-          weightGoalBy: parsed.data.byDate ? parsed.data.byDate.toISOString() : null,
-        },
-      },
-    });
+    await healthRepoForUser(writer.userId).saveWeightGoal(
+      parsed.data.targetKg,
+      parsed.data.byDate ?? null,
+    );
 
     done();
     return { ok: true, data: undefined };
