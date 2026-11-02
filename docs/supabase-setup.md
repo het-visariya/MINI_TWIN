@@ -54,10 +54,38 @@ Better Auth is not a thin wrapper in this codebase. It carries:
 
 Moving to Supabase Auth would mean rewriting all of that and re-deriving the
 age gate on a new set of hooks. The usual reason to pay that cost is Row Level
-Security — and **this app cannot benefit from RLS**. Prisma connects as the
-table owner over a Postgres connection string, not as `authenticated` with a
-user JWT, so `auth.uid()` is `null` on every query and an `auth.uid() = user_id`
-policy would never match. RLS here would be inert, not protective.
+Security, and **a `auth.uid() = user_id` policy cannot work here**: Prisma
+connects as the table owner over a Postgres connection string, not as
+`authenticated` with a user JWT, so `auth.uid()` is `null` on every query and
+such a policy would never match.
+
+> **Correction.** An earlier version of this document concluded from that
+> "RLS here would be inert, not protective." That was wrong, and the mistake is
+> worth recording because it is an easy one to repeat.
+>
+> It reasoned only about *our* query path. But Supabase also exposes the
+> `public` schema through PostgREST and grants `anon` and `authenticated` full
+> DML on every table in it — and the `anon` key is a public credential that
+> ships to browsers. With RLS off, that left a second, unauthenticated door
+> into the same tables, which was verified against the live project:
+>
+> ```
+> GET  /rest/v1/user    -> 200
+> GET  /rest/v1/session -> 200
+> POST /rest/v1/food    -> 400 PGRST204   (a column error, not a denial)
+> ```
+>
+> Access control cannot be argued from the ORM we happen to use when another
+> path to the data exists. The migration
+> `20261103000000_lock_down_data_api` closes it by revoking those grants,
+> changing the schema's DEFAULT PRIVILEGES so future migrations do not
+> re-grant them, and enabling deny-all RLS as a backstop. Afterwards every one
+> of those requests returns 401, while Prisma (owner, `rolbypassrls`) and
+> Storage (service-role) are unaffected.
+>
+> Supabase's linter now reports 49 INFO-level "RLS enabled, no policy" notices.
+> Those are the intended state, not a regression: enabled with no policy *is*
+> deny-all. Do not "fix" them by adding permissive policies.
 
 So the boundary that actually protects user data is the one the app already
 has: **every query is scoped by `userId` in the repo layer**, and no query runs
@@ -120,17 +148,29 @@ it has to be reset once.
 3. Click **Generate a password**, then **copy it** — this is the only time it
    is shown.
 4. On the same page find **Connection string** → the **Session pooler** tab
-   (port **5432**, host `aws-1-ap-south-1.pooler.supabase.com`).
+   (port **5432**, host `aws-0-ap-south-1.pooler.supabase.com`).
 5. Copy that URI and replace `[YOUR-PASSWORD]` with the password from step 3.
 
 Put the result in `.env`:
 
 ```
-DATABASE_URL=postgresql://postgres.vbvhlalfjmlhvtendicx:<password>@aws-1-ap-south-1.pooler.supabase.com:5432/postgres
+DATABASE_URL=postgresql://postgres.vbvhlalfjmlhvtendicx:<password>@aws-0-ap-south-1.pooler.supabase.com:5432/postgres
 ```
 
 > Use the **Session pooler** tab, not Transaction pooler (6543) and not Direct
 > connection. See [section 2](#2-why-one-connection-string-and-not-a-pooleddirect-pair).
+>
+> Copy the host from the dashboard rather than typing it. The pooler prefix is
+> `aws-0-` for this project, but it is assigned per project and is **not**
+> derivable from the region. A wrong prefix fails as
+> `tenant/user postgres.<ref> not found`, which reads like a bad password and
+> sends you looking in the wrong place.
+
+If the password contains characters that are reserved in a URL, percent-encode
+them: `#` becomes `%23`, `@` becomes `%40`, `/` becomes `%2F`, `?` becomes
+`%3F`. The driver decodes them again, so the encoded and literal forms are the
+same credential. An un-encoded `#` is read as the start of a fragment and
+silently truncates the password.
 
 ### 3b. `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`
 
