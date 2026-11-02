@@ -32,6 +32,10 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# ...but the template carries no secrets and is the only record of which
+# variables the app reads. `.env*` was hiding it, so a fresh clone had nothing
+# to copy from.
+!.env.example
 
 # vercel
 .vercel

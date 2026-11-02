@@ -18,18 +18,24 @@ datasource db {
   provider = "postgresql"
 }
 
-/* -------------------------------------------------------------------------- */
-/*                              Better Auth core                              */
-/* -------------------------------------------------------------------------- */
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Better Auth core
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 
 model User {
-  id            String    @id
+  id            String   @id
   name          String
-  email         String    @unique
-  emailVerified Boolean   @default(false)
+  email         String   @unique
+  emailVerified Boolean  @default(false)
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   sessions Session[]
   accounts Account[]
@@ -54,6 +60,7 @@ model User {
   dietProfile DietProfile?
   meals       MealLog[]
   mealItems   MealItem[]
+  mealPhotos  MealPhoto[]
   savedMeals  SavedMeal[]
 
   financeProfile FinanceProfile?
@@ -146,9 +153,15 @@ model RateLimit {
   @@map("rate_limit")
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                   Profile                                  */
-/* -------------------------------------------------------------------------- */
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Profile
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 
 enum LifeStage {
   SCHOOL
@@ -219,9 +232,15 @@ model Profile {
   @@map("profile")
 }
 
-/* -------------------------------------------------------------------------- */
-/*                                   Domain                                   */
-/* -------------------------------------------------------------------------- */
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Domain
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
 
 /// Mirrors the `Domain` union in src/lib/domain/types.ts.
 enum LifeDomain {
@@ -253,12 +272,12 @@ model Subject {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name    String
-  code    String?
-  credits Int     @default(3)
+  name       String
+  code       String?
+  credits    Int     @default(3)
   /// 1–5, the user's own rating. Feeds task ranking, not a grade prediction.
-  difficulty Int  @default(3)
-  importance Int  @default(3)
+  difficulty Int     @default(3)
+  importance Int     @default(3)
 
   /// Attendance is kept as a running count as well as a log, so the bunk
   /// budget can be answered without reading every record.
@@ -367,10 +386,10 @@ model Habit {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  name          String
+  name         String
   /// Target repetitions per week.
-  timesPerWeek  Int    @default(7)
-  domain        LifeDomain @default(ROUTINE)
+  timesPerWeek Int        @default(7)
+  domain       LifeDomain @default(ROUTINE)
 
   logs HabitLog[]
 
@@ -397,7 +416,9 @@ model HabitLog {
   @@map("habit_log")
 }
 
-/* --------------------------------- health --------------------------------- */
+/**
+ * --------------------------------- health ---------------------------------
+ */
 
 enum ActivityLevel {
   SEDENTARY
@@ -419,11 +440,11 @@ model HealthProfile {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  heightCm      Float?
-  activityLevel ActivityLevel @default(LIGHT)
+  heightCm       Float?
+  activityLevel  ActivityLevel @default(LIGHT)
   /// Sessions a week the user says they intend to train. Consistency is
   /// measured against this, which is their own number rather than a default.
-  plannedPerWeek Int @default(3)
+  plannedPerWeek Int           @default(3)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -462,7 +483,7 @@ model WorkoutSet {
   /// Position within the session, so "repeat last set" is well defined.
   setIndex Int
   reps     Int
-  weightKg Float @default(0)
+  weightKg Float  @default(0)
 
   createdAt DateTime @default(now())
 
@@ -517,7 +538,7 @@ model MoodCheckin {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  date DateTime @db.Date
+  date   DateTime @db.Date
   /// 1–5, from the five-face picker. Never used to drive the twin's state.
   mood   Int
   energy Int
@@ -526,7 +547,9 @@ model MoodCheckin {
   @@map("mood_checkin")
 }
 
-/* -------------------------------- nutrition ------------------------------- */
+/**
+ * -------------------------------- nutrition -------------------------------
+ */
 
 enum DietType {
   VEGETARIAN
@@ -549,7 +572,7 @@ enum MealType {
 model Food {
   id String @id @default(cuid())
 
-  name String @unique
+  name    String   @unique
   /// Alternate spellings and regional names, matched by the meal parser.
   aliases String[]
 
@@ -579,7 +602,7 @@ model DietProfile {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  dietType DietType @default(VEGETARIAN)
+  dietType  DietType @default(VEGETARIAN)
   /// Free-text allergens. A meal matching one of these cannot save until the
   /// user has explicitly confirmed past the warning.
   allergies String[]
@@ -598,7 +621,8 @@ model MealLog {
   date     DateTime @db.Date
   mealType MealType @default(SNACK)
 
-  items MealItem[]
+  items  MealItem[]
+  photos MealPhoto[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -635,9 +659,85 @@ model MealItem {
   /// "Couldn't match — add details" row.
   isEstimate Boolean @default(false)
 
+  /// Where these numbers came from. Photo-derived rows are always estimates,
+  /// and the UI labels them as such for as long as they exist — the provider
+  /// is recorded so a later correction to one model's output can be found.
+  source MealItemSource @default(MANUAL)
+
+  /// Set when this row was produced by analysing a photo, so a user editing a
+  /// detected item can still see the picture it came from.
+  mealPhotoId String?
+  mealPhoto   MealPhoto? @relation(fields: [mealPhotoId], references: [id], onDelete: SetNull)
+
   @@index([mealLogId])
   @@index([userId])
+  @@index([mealPhotoId])
   @@map("meal_item")
+}
+
+/// How a meal item's numbers were arrived at.
+enum MealItemSource {
+  /// Typed by the user, or matched against the food table.
+  MANUAL
+  FOOD_TABLE
+  /// Estimated from a photo by a vision model. Always an estimate.
+  PHOTO_GEMINI
+  PHOTO_LOGMEAL
+}
+
+/// A meal photo and what the vision model made of it.
+///
+/// A photo is uploaded and analysed BEFORE anything is written to the log:
+/// the user has to confirm the detected rows first. So `mealLogId` is null
+/// until that confirmation happens, and a photo that is never confirmed stays
+/// an orphan row pointing at an uploaded object — which is what lets an
+/// abandoned upload be swept up later.
+model MealPhoto {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Null until the user confirms the detected items into a log.
+  mealLogId String?
+  mealLog   MealLog? @relation(fields: [mealLogId], references: [id], onDelete: SetNull)
+
+  /// Object path inside the private `meal-photos` bucket, always
+  /// `{userId}/{id}.jpg`. The bucket has no anon/authenticated policy: every
+  /// read is a server-signed URL, so the path alone grants nothing.
+  storagePath String
+
+  status MealPhotoStatus @default(PENDING)
+
+  /// Raw provider response, kept verbatim. Stored so an estimate can be
+  /// explained back to the user and so a provider's output can be re-read if
+  /// the parsing changes — never trusted as display text without validation.
+  detectedJson Json?
+
+  /// Which provider produced `detectedJson`, and why it failed if it did.
+  source      MealItemSource?
+  failureNote String?
+
+  items MealItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([mealLogId])
+  @@map("meal_photo")
+}
+
+enum MealPhotoStatus {
+  /// Row created, object not uploaded yet.
+  PENDING
+  /// Uploaded, waiting on the vision provider.
+  ANALYZING
+  /// Analysed; `detectedJson` holds items awaiting the user's confirmation.
+  READY
+  /// The user accepted (possibly edited) the rows into a meal log.
+  CONFIRMED
+  /// Provider error, or nothing recognisable. The user falls back to typing.
+  FAILED
 }
 
 model SavedMeal {
@@ -678,7 +778,9 @@ model SavedMealItem {
   @@map("saved_meal_item")
 }
 
-/* --------------------------------- money ---------------------------------- */
+/**
+ * --------------------------------- money ----------------------------------
+ */
 
 enum PaymentMethod {
   CASH
@@ -723,8 +825,8 @@ model Expense {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  date     DateTime @db.Date
-  category String
+  date          DateTime      @db.Date
+  category      String
   /// Paise, not rupees.
   amountMinor   Int
   note          String?
@@ -787,10 +889,10 @@ model Investment {
   investedMinor Int   @default(0)
   /// Entered by hand. A live price provider replaces this only when a market
   /// data key is configured; until then the UI says prices are not connected.
-  currentMinor Int @default(0)
+  currentMinor  Int   @default(0)
 
   /// Fixed deposits: annual rate as a percentage, e.g. 7.1.
-  interestRate Float?
+  interestRate   Float?
   /// SIPs: the instalment and the day of the month it goes out.
   sipAmountMinor Int?
   sipDay         Int?
@@ -805,7 +907,9 @@ model Investment {
   @@map("investment")
 }
 
-/* --------------------------------- career --------------------------------- */
+/**
+ * --------------------------------- career ---------------------------------
+ */
 
 enum PlacementStage {
   PREPARING
@@ -850,7 +954,7 @@ model RoleSkillRequirement {
 
   skill         String
   /// 1-5.
-  requiredLevel Int @default(3)
+  requiredLevel Int    @default(3)
 
   @@unique([careerGoalId, skill])
   @@index([careerGoalId])
@@ -862,9 +966,9 @@ model UserSkill {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  skill String
+  skill    String
   /// 1-5, the user's own rating.
-  level Int     @default(1)
+  level    Int     @default(1)
   /// What backs the rating up, in their words. Never inferred.
   evidence String?
 
@@ -938,7 +1042,7 @@ model RoadmapItem {
   done    Boolean   @default(false)
   /// Explicit ordering, because the user drags these into the order they
   /// intend to do them in.
-  order Int @default(0)
+  order   Int       @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -948,7 +1052,9 @@ model RoadmapItem {
   @@map("roadmap_item")
 }
 
-/* -------------------------------- insights -------------------------------- */
+/**
+ * -------------------------------- insights --------------------------------
+ */
 
 /// One row per user per day, written by the snapshot job. This is the only
 /// table in the schema that stores a derived number, and it exists because a
@@ -982,9 +1088,9 @@ model WeeklyReview {
 
   weekStart DateTime @db.Date
 
-  wentWell   String[]
-  slipped    String[]
-  nextFocus  String[]
+  wentWell  String[]
+  slipped   String[]
+  nextFocus String[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1009,7 +1115,9 @@ model Achievement {
   @@map("achievement")
 }
 
-/* -------------------------------- reminders ------------------------------- */
+/**
+ * -------------------------------- reminders -------------------------------
+ */
 
 enum ReminderKind {
   DEADLINE
@@ -1038,7 +1146,7 @@ model NotificationPrefs {
   quietHoursEnd   Int @default(7)
   /// The product sends at most this many a day. Three, not "as many as there
   /// are things to say".
-  dailyCap Int @default(3)
+  dailyCap        Int @default(3)
 
   emailEnabled Boolean @default(false)
   timezone     String  @default("Asia/Kolkata")
@@ -1054,13 +1162,13 @@ model ReminderRule {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  kind    ReminderKind
-  enabled Boolean      @default(true)
+  kind        ReminderKind
+  enabled     Boolean         @default(true)
   /// How far ahead of the thing itself to send.
   leadMinutes Int             @default(60)
   channel     ReminderChannel @default(IN_APP)
   /// Only for CUSTOM rules.
-  label String?
+  label       String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1106,7 +1214,9 @@ model DevEmail {
   @@map("dev_email")
 }
 
-/* ---------------------------------- twin ---------------------------------- */
+/**
+ * ---------------------------------- twin ----------------------------------
+ */
 
 enum MessageAuthor {
   USER
@@ -1143,13 +1253,13 @@ model AiConsentLog {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   /// Which feature asked: twin_chat, jarvis, career_roadmap, …
-  feature String
+  feature    String
   /// Plain-language data categories sent, as shown in the consent sheet.
   categories String[]
   /// What was sent, summarised — not the payload itself.
   summary    String
   model      String?
-  granted    Boolean @default(true)
+  granted    Boolean  @default(true)
 
   createdAt DateTime @default(now())
 
