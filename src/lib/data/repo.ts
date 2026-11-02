@@ -114,7 +114,10 @@ export function forUser(userId: string): Repo {
 
       const now = new Date();
 
-      const [profile, commitments, tasks, pulse] = await Promise.all([
+      const [account, profile, commitments, tasks, pulse] = await Promise.all([
+        /* Only the name. The greeting needs nothing else about the account,
+           and a query that selects nothing else cannot leak anything else. */
+        prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
         prisma.profile.findUnique({ where: { userId } }),
         prisma.commitment.findMany({
           where: { userId, ...todayRange() },
@@ -157,11 +160,11 @@ export function forUser(userId: string): Repo {
       if (commitments.length === 0 && tasks.length === 0 && pulse.scores.length === 0) {
         /* A brand-new account. The screen gets a real, honest empty snapshot
            rather than invented numbers — Home's empty state teaches from it. */
-        return emptySnapshot(greetingForNow());
+        return emptySnapshot(greetingForNow(account?.name));
       }
 
       const base = snapshotFromRows({
-        greeting: greetingForNow(),
+        greeting: greetingForNow(account?.name),
         commitments: commitments.map(toCommitment),
         tasks: tasks.map(toTask),
         traits: (profile?.traits ?? {}) as Record<string, unknown>,
@@ -490,9 +493,26 @@ function todayRange() {
   return { start: { gte: start, lt: end } };
 }
 
-function greetingForNow() {
+/**
+ * "Good evening, Het".
+ *
+ * First name only, and only when there is one to use. People sign up with
+ * whatever they type — one word, three words, a name with a title — so the
+ * first whitespace-separated piece is the part that reads as being addressed
+ * rather than filed. A blank or missing name falls back to the bare greeting
+ * instead of rendering "Good evening, " with nothing after the comma.
+ */
+function greetingForNow(fullName?: string | null) {
   const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
+  const timeOfDay =
+    hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+
+  const firstName = firstNameOf(fullName);
+  return firstName ? `${timeOfDay}, ${firstName}` : timeOfDay;
+}
+
+/** The first whitespace-separated piece of a name, or null if there is none. */
+export function firstNameOf(fullName?: string | null): string | null {
+  const first = (fullName ?? "").trim().split(/\s+/)[0] ?? "";
+  return first.length > 0 ? first : null;
 }

@@ -19,6 +19,8 @@
  *     must never be able to block the manual log.
  */
 
+import { geminiFoodVision } from "@/lib/integrations/food-vision-gemini";
+
 /** How sure the provider is about one row, 0–1. Drives the confidence chip. */
 export type Confidence = number;
 
@@ -111,14 +113,22 @@ export const nullFoodVision: FoodVision = {
 /**
  * Which provider to use.
  *
- * TODO(het): need the food-vision provider decision (§9). Gemini vision reuses
- * GEMINI_API_KEY and needs no new account; LogMeal needs LOGMEAL_API_KEY and
- * is a specialist model with better dish-level recall. Until you pick one,
- * this returns the null provider and the photo button stays hidden, so the
- * screen never offers something that cannot work.
+ * Gemini when a key is present, nothing otherwise. Chosen over LogMeal because
+ * it reuses the key Jarvis already needs — one credential, one account, one
+ * thing to rotate — and because the user confirms every row before it is
+ * saved, which is where LogMeal's better dish-level recall would have paid
+ * off. Swapping is a change to this function and nothing else.
+ *
+ * Imported lazily so the Gemini module is not pulled into a bundle that will
+ * never call it, and so a missing key costs nothing at startup.
  */
 export function getFoodVision(): FoodVision {
-  return nullFoodVision;
+  const apiKey = process.env.GEMINI_API_KEY;
+  const model = process.env.GEMINI_MODEL;
+
+  if (!apiKey || !model) return nullFoodVision;
+
+  return geminiFoodVision(apiKey, model);
 }
 
 /**
@@ -144,10 +154,4 @@ export function sourceForProvider(
   return "MANUAL";
 }
 
-/**
- * Below this, the provider is saying "I think, but I would not bet".
- *
- * At or under it the UI leads with "couldn't read this clearly" and offers the
- * manual composer, instead of presenting a row that looks authoritative.
- */
-export const LOW_CONFIDENCE = 0.45;
+

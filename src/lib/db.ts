@@ -67,24 +67,35 @@ export function getPrisma(): PrismaClient {
     adapter: new PrismaPg({
       connectionString,
 
-      /* Bounded well below pg's default of 10.
+      /* Sized against this app's widest fan-out, not plucked from the air.
 
-         This app talks to Supabase through Supavisor, which has its own cap on
-         *client* connections per project — a limit reached long before
-         Postgres itself runs out of backends. A dev server that hot-reloads
-         for hours can hold several pools at once, and the symptom when those
-         slots run out is not a clear pool error but an intermittent
-         `Can't reach database server`, which looks like a network fault and
-         sends you debugging the wrong thing. Five is ample for one instance
-         and leaves room for migrations, a second dev server and psql. */
-      max: 5,
+         Several screens gather their data with a single Promise.all of around
+         nine independent queries -- `gatherPulseInputs` is the widest. A pool
+         smaller than that fan-out does not fail outright, it queues, and under
+         any concurrency the queue outlives `connectionTimeoutMillis`. The
+         symptom is "timeout exceeded when trying to connect" against a
+         perfectly healthy database.
 
-      /* Don't hold idle sockets open against the pooler any longer than a
-         request burst needs them. */
-      idleTimeoutMillis: 10_000,
+         Worse, a server action that hangs for the full timeout invites the
+         user to press the button again, so a too-small pool surfaces as
+         *duplicate rows*. An earlier revision of this file set 5 and did
+         exactly that to the workout form: one logWorkout hung for 15s, the
+         user clicked again, and the workout was logged twice.
 
-      /* Fail fast rather than hanging a request for the pg default. */
-      connectionTimeoutMillis: 15_000,
+         Ten covers the widest fan-out with headroom. The ceiling worth
+         respecting is Supavisor's: in session mode each client connection
+         holds a Postgres backend for its lifetime, so this cannot be raised
+         freely -- but ten against max_connections of 60 leaves room for
+         migrations, a second dev server and psql. */
+      max: 10,
+
+      /* Release idle sockets without churning reconnects between the several
+         requests of one page load. */
+      idleTimeoutMillis: 30_000,
+
+      /* Long enough to ride out a brief burst, short enough that a genuinely
+         exhausted pool says so instead of hanging the request. */
+      connectionTimeoutMillis: 10_000,
     }),
   });
 

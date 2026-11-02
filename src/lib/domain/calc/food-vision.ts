@@ -18,7 +18,23 @@
  */
 
 import { matchFood, round, type DraftItem, type FoodRef } from "@/lib/domain/calc/nutrition";
-import { LOW_CONFIDENCE, type DetectedFood, type FoodAnalysis } from "@/lib/integrations/food-vision";
+import type { DetectedFood, FoodAnalysis } from "@/lib/integrations/food-vision";
+
+/**
+ * Below this, the provider is saying "I think, but I would not bet".
+ *
+ * At or under it the UI leads with "couldn't read this clearly" and offers
+ * the manual composer rather than a row that looks authoritative.
+ *
+ * It lives in this pure module, not beside the provider interface, for a
+ * structural reason: the confirm UI is a client component and needs this
+ * number. Were it exported from `integrations/food-vision`, importing it
+ * would pull that module -- and through it the Gemini client, its API key
+ * handling and `Buffer` -- into the browser bundle. Types are erased at
+ * compile time, so the `import type` above costs nothing; a value would not
+ * have been free.
+ */
+export const LOW_CONFIDENCE = 0.45;
 
 /** A draft row plus the provenance the confirm screen needs to show. */
 export type PhotoDraftItem = DraftItem & {
