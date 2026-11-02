@@ -19,7 +19,9 @@ import {
   getFoods,
   nutritionRepoForUser,
   type NutritionRepo,
+  type PhotoProvenance,
 } from "@/lib/data/nutrition.repo";
+import { mealPhotoRepoForUser } from "@/lib/data/meal-photo.repo";
 import { nutritionView } from "@/lib/data/module-fixtures";
 import {
   allergyConflicts,
@@ -122,6 +124,7 @@ export async function logMeal(formData: FormData): Promise<ActionResult<{ id: st
       carbsG: str(formData.getAll("carbsG")[index]) || "0",
       fatG: str(formData.getAll("fatG")[index]) || "0",
       isEstimate: str(formData.getAll("isEstimate")[index]) || undefined,
+      fromPhoto: str(formData.getAll("fromPhoto")[index]) || undefined,
     }));
 
     const parsed = mealLogSchema.safeParse({
@@ -129,6 +132,7 @@ export async function logMeal(formData: FormData): Promise<ActionResult<{ id: st
       mealType: formData.get("mealType") ?? undefined,
       items,
       confirmedAllergyWarning: formData.get("confirmedAllergyWarning") ?? undefined,
+      mealPhotoId: formData.get("mealPhotoId") ?? undefined,
     });
     if (!parsed.success) return invalid(parsed.error);
 
@@ -150,7 +154,7 @@ export async function logMeal(formData: FormData): Promise<ActionResult<{ id: st
       };
     }
 
-    const meal = await repo.logMeal(parsed.data);
+    const meal = await repo.logMeal(parsed.data, await provenance(parsed.data.mealPhotoId, userId));
     done();
 
     return { ok: true, data: meal };
@@ -217,6 +221,39 @@ export async function relogSavedMeal(formData: FormData): Promise<ActionResult<{
   } catch (error) {
     return failure(error);
   }
+}
+
+/**
+ * Resolve what a claimed `mealPhotoId` is actually allowed to mean.
+ *
+ * The form says "these rows came from a photo"; this decides whether that is
+ * true and what provider to credit. An id the user does not own, or one whose
+ * analysis never completed, resolves to `undefined` — the meal still saves,
+ * just without provenance, because losing a label is a better outcome than
+ * refusing a meal the user did eat.
+ *
+ * `source` comes from the stored row, never from the request, so the client
+ * cannot attribute its typing to a model that was never called.
+ */
+async function provenance(
+  mealPhotoId: string | undefined,
+  userId: string | undefined,
+): Promise<PhotoProvenance | undefined> {
+  if (!mealPhotoId || !userId) return undefined;
+
+  const photo = await mealPhotoRepoForUser(userId).get(mealPhotoId);
+
+  /* READY means analysed and awaiting confirmation — which is exactly the
+     state a confirm submission should find it in. CONFIRMED would mean this
+     photo already became a meal, and re-crediting it to a second one would
+     make the same reading look like two meals eaten. */
+  if (!photo || photo.status !== "READY") return undefined;
+
+  /* No recorded provider means nothing was successfully analysed, whatever
+     the status says, so there is no provenance to credit. */
+  if (!photo.source) return undefined;
+
+  return { mealPhotoId, source: photo.source };
 }
 
 /* -------------------------------------------------------------------------- */

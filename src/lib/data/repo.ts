@@ -33,6 +33,7 @@ import {
 } from "@/lib/data/insights.repo";
 import { demoRemindersRepo, remindersRepoForUser } from "@/lib/data/reminders.repo";
 import { demoFinanceRepo, financeRepoForUser } from "@/lib/data/finance.repo";
+import { demoMealPhotoRepo, mealPhotoRepoForUser } from "@/lib/data/meal-photo.repo";
 import { demoNutritionRepo, nutritionRepoForUser } from "@/lib/data/nutrition.repo";
 import { getPrisma } from "@/lib/db";
 import { getViewer, type Viewer } from "@/lib/auth/session";
@@ -426,6 +427,7 @@ function moduleRepo<T>(forUserImpl: (userId: string) => T, demoImpl: T) {
 
 export const getHealthRepo = moduleRepo(healthRepoForUser, demoHealthRepo);
 export const getNutritionRepo = moduleRepo(nutritionRepoForUser, demoNutritionRepo);
+export const getMealPhotoRepo = moduleRepo(mealPhotoRepoForUser, demoMealPhotoRepo);
 export const getFinanceRepo = moduleRepo(financeRepoForUser, demoFinanceRepo);
 export const getCareerRepo = moduleRepo(careerRepoForUser, demoCareerRepo);
 export const getInsightsRepo = moduleRepo(insightsRepoForUser, demoInsightsRepo);

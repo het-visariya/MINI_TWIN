@@ -46,6 +46,17 @@ export const mealItemSchema = z.object({
   carbsG: macro.default(0),
   fatG: macro.default(0),
   isEstimate: checkbox.default(false),
+
+  /**
+   * Set on rows that came from a photo reading.
+   *
+   * It selects *which* rows get the photo's provenance stamped on them; it
+   * cannot choose what that provenance says. The action resolves the actual
+   * `MealItemSource` from the owned `MealPhoto` row, so a crafted POST can
+   * mark a typed item as photo-derived but cannot invent a provider that never
+   * ran, and cannot attach a photo it does not own.
+   */
+  fromPhoto: checkbox.default(false),
 });
 
 export const mealLogSchema = z.object({
@@ -60,6 +71,15 @@ export const mealLogSchema = z.object({
    * The action checks for conflicts itself and refuses without this.
    */
   confirmedAllergyWarning: checkbox.default(false),
+
+  /**
+   * The photo these items were read from, when there was one.
+   *
+   * Ownership and status are checked server-side before anything is stamped
+   * with it: an id for someone else's photo, or for one that was never
+   * analysed, is treated as absent rather than as an error.
+   */
+  mealPhotoId: z.string().trim().max(64).optional(),
 });
 
 export const parseMealSchema = z.object({

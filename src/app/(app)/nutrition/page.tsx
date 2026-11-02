@@ -16,6 +16,7 @@ import { ModuleTabs } from "@/components/patterns/module-tabs";
 import { PageHeader } from "@/components/patterns/page-header";
 import { EmptyState, GridSkeleton } from "@/components/patterns/states";
 import { MealComposer } from "@/components/nutrition/meal-composer";
+import { MealPhotoCapture } from "@/components/nutrition/meal-photo-capture";
 import {
   DietProfileForm,
   FoodSearch,
@@ -23,6 +24,7 @@ import {
   SavedMeals,
 } from "@/components/nutrition/nutrition-panels";
 import { getNutritionRepo } from "@/lib/data/repo";
+import { foodVisionConnected } from "@/lib/integrations/food-vision";
 import { isoDate } from "@/lib/domain/calc/health";
 import type { NutritionView } from "@/lib/data/nutrition.repo";
 import type { MealType } from "@/lib/domain/calc/nutrition";
@@ -125,6 +127,18 @@ function TodayTab({ view, today }: { view: NutritionView; today: string }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
       <div className="space-y-6">
+        {/* Shown only when a provider is actually configured. Hidden rather
+            than disabled: a greyed-out camera invites the user to wonder what
+            they did wrong, where its absence just means "not here yet". The
+            typed composer below is always available either way. */}
+        {foodVisionConnected() && (
+          <MealPhotoCapture
+            action={logMeal}
+            today={today}
+            allergies={view.profile.allergies}
+          />
+        )}
+
         <MealComposer
           action={logMeal}
           foods={view.foods}

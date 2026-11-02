@@ -74,10 +74,20 @@ export type NutritionView = {
   daysLoggedLast14: number;
 };
 
+/**
+ * Where a photo-derived row came from, resolved by the action from a MealPhoto
+ * row it has already confirmed the user owns. The repo takes it as given: it
+ * is not in `MealLogInput` precisely so it cannot arrive from a form.
+ */
+export type PhotoProvenance = {
+  mealPhotoId: string;
+  source: "PHOTO_GEMINI" | "PHOTO_LOGMEAL";
+};
+
 export type NutritionRepo = {
   getNutrition(now?: Date): Promise<NutritionView>;
   saveDietProfile(input: DietProfileInput): Promise<void>;
-  logMeal(input: MealLogInput): Promise<{ id: string }>;
+  logMeal(input: MealLogInput, photo?: PhotoProvenance): Promise<{ id: string }>;
   deleteMeal(mealLogId: string): Promise<void>;
   saveMealAs(mealLogId: string, name: string): Promise<void>;
   relogSavedMeal(savedMealId: string, date: Date, mealType: MealType): Promise<{ id: string }>;
@@ -200,28 +210,52 @@ export function nutritionRepoForUser(userId: string): NutritionRepo {
      * profile and the user's explicit confirmation, which is a decision about
      * consent rather than a decision about storage.
      */
-    async logMeal(input) {
-      return prisma.mealLog.create({
+    async logMeal(input, photo) {
+      const meal = await prisma.mealLog.create({
         data: {
           userId,
           date: input.date,
           mealType: input.mealType,
           items: {
-            create: input.items.map((item) => ({
-              userId,
-              foodId: item.foodId ?? null,
-              label: item.label,
-              quantity: item.quantity,
-              kcal: item.kcal,
-              proteinG: item.proteinG,
-              carbsG: item.carbsG,
-              fatG: item.fatG,
-              isEstimate: item.isEstimate,
-            })),
+            create: input.items.map((item) => {
+              /* A row is photo-derived only if the client flagged it AND the
+                 action resolved a photo this user owns. Both halves are
+                 required, so neither a stray flag nor a borrowed id is enough. */
+              const fromPhoto = Boolean(item.fromPhoto && photo);
+
+              return {
+                userId,
+                foodId: item.foodId ?? null,
+                label: item.label,
+                quantity: item.quantity,
+                kcal: item.kcal,
+                proteinG: item.proteinG,
+                carbsG: item.carbsG,
+                fatG: item.fatG,
+                /* Photo-derived numbers are estimates whatever the form said:
+                   the user may edit the values, but editing a guess does not
+                   turn it into a measurement. */
+                isEstimate: fromPhoto ? true : item.isEstimate,
+                source: fromPhoto ? photo!.source : "MANUAL",
+                mealPhotoId: fromPhoto ? photo!.mealPhotoId : null,
+              };
+            }),
           },
         },
         select: { id: true },
       });
+
+      /* Attach the photo to the log it became. This is the step that takes the
+         reading off "provider said" and onto the user's record, and it happens
+         only here — after the confirm form, never on analysis. */
+      if (photo) {
+        await prisma.mealPhoto.updateMany({
+          where: { id: photo.mealPhotoId, userId },
+          data: { status: "CONFIRMED", mealLogId: meal.id },
+        });
+      }
+
+      return meal;
     },
 
     async deleteMeal(mealLogId) {
