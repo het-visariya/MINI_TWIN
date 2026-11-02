@@ -125,6 +125,7 @@ export const twinVertexShader = /* glsl */ `
   uniform float uAccentShare;
   uniform float uHighlightBand;
   uniform float uPixelRatio;
+  uniform float uCameraDistance;
 
   attribute float aSeed;
   attribute float aBand;
@@ -160,7 +161,16 @@ export const twinVertexShader = /* glsl */ `
 
     vec4 mv = modelViewMatrix * vec4(displaced, 1.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = uSize * uPixelRatio * (1.0 + vHighlight * 0.8) * (300.0 / -mv.z);
+
+    /* Perspective attenuation, normalised against the camera's own distance so
+       uSize means "pixels at the centre of the figure". The usual three.js
+       idiom here is a bare 300.0 / -mv.z, but that constant assumes uSize is
+       a world-space radius; uSize is in pixels. With the camera at z=3.4 and a
+       unit sphere, -mv.z stays between 2.4 and 4.4, so the bare form multiplies
+       by ~88 and every point renders ~185px wide. Additively blended, 5,200
+       near-white discs that size saturate the canvas to a flat white square. */
+    float attenuation = uCameraDistance / -mv.z;
+    gl_PointSize = uSize * uPixelRatio * (1.0 + vHighlight * 0.8) * attenuation;
   }
 `;
 

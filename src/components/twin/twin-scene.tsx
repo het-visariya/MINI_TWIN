@@ -52,6 +52,7 @@ function TwinFigure({
       uSize: { value: 2.1 },
       uHighlightBand: { value: -1 },
       uPixelRatio: { value: 1 },
+      uCameraDistance: { value: 1 },
       uColor: { value: new Color(color) },
       uAccentColor: { value: new Color(accentColor) },
     }),
@@ -85,6 +86,10 @@ function TwinFigure({
     u.uColor.value.set(color);
     u.uAccentColor.value.set(accentColor);
     u.uPixelRatio.value = Math.min(dpr, 1.75);
+
+    /* Read from the live camera rather than hard-coded alongside it, so moving
+       the camera cannot silently rescale every point. */
+    u.uCameraDistance.value = frameState.camera.position.length();
 
     /* Pointer parallax, capped at 4° so it never becomes a toy. */
     if (points.current) {
@@ -157,7 +162,9 @@ export default function TwinScene({
       camera={{ position: [0, 0, 3.4], fov: 42 }}
       gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
       onClick={onSelect}
-      style={onSelect ? { cursor: "pointer" } : undefined}
+      /* Explicitly transparent: the twin always sits on the page's own
+         background, never on a surface of its own. */
+      style={{ background: "transparent", ...(onSelect && { cursor: "pointer" }) }}
     >
       <PerformanceMonitor
         onDecline={() => setTier((current) => Math.min(2, current + 1))}
