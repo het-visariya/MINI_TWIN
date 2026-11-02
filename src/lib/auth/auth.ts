@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError } from "better-auth/api";
@@ -60,7 +61,21 @@ function create() {
       autoSignInAfterVerification: true,
       expiresIn: 60 * 60,
       sendVerificationEmail: async ({ user, url }) => {
-        await sendVerificationEmail(user.email, user.name || user.email, url);
+        /*
+         * Handed to `after()` rather than simply awaited.
+         *
+         * Better Auth dispatches this as a background task, which is work the
+         * runtime does not know about: once the signup response is written,
+         * the invocation can be torn down mid-send. The symptom is an
+         * intermittently missing verification email — the account exists, the
+         * user is told to check their inbox, and nothing arrives. It was
+         * reproducible here as 8 accounts against 4 delivered emails, and it
+         * would be worse on a serverless host, where teardown is immediate.
+         *
+         * `after()` registers the work with Next, so the response still goes
+         * out first but the send is allowed to finish.
+         */
+        after(sendVerificationEmail(user.email, user.name || user.email, url));
       },
     },
 

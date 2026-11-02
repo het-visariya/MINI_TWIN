@@ -142,5 +142,12 @@ function describeSignUpError(error: unknown): { error: string; field?: "email" |
     };
   }
 
+  /* An unmapped cause is the one case where the user is told nothing useful,
+     so it must not also be invisible on the server. Without this line the
+     only evidence of a broken signup is a generic sentence in the browser,
+     which is indistinguishable from a dozen different faults. The message is
+     logged, never the email or password. */
+  console.error(`[signup] unmapped failure: ${message}`);
+
   return { error: "Something went wrong creating your account. Nothing was saved." };
 }
