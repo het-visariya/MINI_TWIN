@@ -10,7 +10,7 @@ import { connection } from "next/server";
 
 import { financeView } from "@/lib/data/module-fixtures";
 import { getPrisma } from "@/lib/db";
-import { isoDate } from "@/lib/domain/calc/health";
+import { isoCalendarDate } from "@/lib/domain/calc/health";
 import {
   annualSubscriptionCost,
   dailyCumulative,
@@ -146,7 +146,7 @@ export function financeRepoForUser(userId: string): FinanceRepo {
 
       const expenseViews: ExpenseView[] = expenses.map((row) => ({
         id: row.id,
-        date: isoDate(row.date),
+        date: isoCalendarDate(row.date),
         category: row.category,
         amountMinor: row.amountMinor,
         note: row.note ?? undefined,
@@ -157,7 +157,7 @@ export function financeRepoForUser(userId: string): FinanceRepo {
         name: row.name,
         amountMinor: row.amountMinor,
         cycle: row.cycle as BillingCycle,
-        nextRenewal: isoDate(row.nextRenewal),
+        nextRenewal: isoCalendarDate(row.nextRenewal),
       }));
 
       return {
@@ -182,7 +182,7 @@ export function financeRepoForUser(userId: string): FinanceRepo {
           name: row.name,
           amountMinor: row.amountMinor,
           cycle: row.cycle as BillingCycle,
-          nextRenewal: isoDate(row.nextRenewal),
+          nextRenewal: isoCalendarDate(row.nextRenewal),
           daysAway: daysBetween(now, row.nextRenewal),
         })),
         annualSubscriptionMinor: annualSubscriptionCost(subscriptionRows),
@@ -192,7 +192,7 @@ export function financeRepoForUser(userId: string): FinanceRepo {
           name: row.name,
           targetMinor: row.targetMinor,
           savedMinor: row.savedMinor,
-          deadline: row.deadline ? isoDate(row.deadline) : null,
+          deadline: row.deadline ? isoCalendarDate(row.deadline) : null,
           progress: savingsProgress(row.savedMinor, row.targetMinor),
           monthlyNeededMinor: monthlyToReachGoal(
             row.savedMinor,
@@ -213,7 +213,7 @@ export function financeRepoForUser(userId: string): FinanceRepo {
           interestRate: row.interestRate,
           sipAmountMinor: row.sipAmountMinor,
           sipDay: row.sipDay,
-          startDate: row.startDate ? isoDate(row.startDate) : null,
+          startDate: row.startDate ? isoCalendarDate(row.startDate) : null,
           /* Only an FD has a knowable future value: its rate is fixed when it
              is opened. Nothing else gets a projection. */
           maturity:
@@ -229,7 +229,7 @@ export function financeRepoForUser(userId: string): FinanceRepo {
             currentMinor: row.currentMinor,
             interestRate: row.interestRate,
             sipAmountMinor: row.sipAmountMinor,
-            startDate: row.startDate ? isoDate(row.startDate) : null,
+            startDate: row.startDate ? isoCalendarDate(row.startDate) : null,
           })),
         ),
 

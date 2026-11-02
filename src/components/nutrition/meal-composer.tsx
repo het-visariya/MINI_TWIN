@@ -1,9 +1,10 @@
 "use client";
 
-import { AlertTriangle, CircleHelp, X } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { ActionForm, FieldError, FormError } from "@/components/patterns/action-form";
+import { MealDraftRow } from "@/components/nutrition/meal-draft-row";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import {
   allergyConflicts,
   dailyTotals,
@@ -167,105 +167,16 @@ export function MealComposer({
 
                 <ul className="space-y-2">
                   {items.map((row) => (
-                    <li
+                    <MealDraftRow
                       key={row.key}
-                      className={cn(
-                        "rounded-lg border p-2.5",
-                        row.matchedName
-                          ? "bg-surface-2/50"
-                          : "border-attention/35 bg-attention/5",
-                      )}
-                    >
-                      {/* Everything the server needs for this row. */}
-                      <input type="hidden" name="label" value={row.label} />
-                      <input type="hidden" name="foodId" value={row.foodId ?? ""} />
-                      <input type="hidden" name="quantity" value={row.quantity} />
-                      <input type="hidden" name="kcal" value={row.kcal} />
-                      <input type="hidden" name="proteinG" value={row.proteinG} />
-                      <input type="hidden" name="carbsG" value={row.carbsG} />
-                      <input type="hidden" name="fatG" value={row.fatG} />
-                      <input
-                        type="hidden"
-                        name="isEstimate"
-                        value={row.isEstimate ? "true" : ""}
-                      />
-
-                      <div className="flex items-start gap-2">
-                        <div className="min-w-0 flex-1">
-                          {row.matchedName ? (
-                            <>
-                              <p className="text-sm font-medium">
-                                {row.matchedName}
-                                <span className="text-muted-foreground font-normal">
-                                  {" "}
-                                  × {formatQuantity(row.quantity)}
-                                  {row.servingLabel ? ` (${row.servingLabel})` : ""}
-                                </span>
-                              </p>
-                              <p className="text-muted-foreground tabular mt-0.5 font-mono text-2xs">
-                                {Math.round(row.kcal)} kcal · P {row.proteinG} · C{" "}
-                                {row.carbsG} · F {row.fatG}
-                                {row.isEstimate && (
-                                  <span className="font-sans"> · estimate</span>
-                                )}
-                              </p>
-                            </>
-                          ) : (
-                            <>
-                              <p className="text-attention flex items-center gap-1.5 text-sm font-medium">
-                                <CircleHelp className="size-3.5" aria-hidden />
-                                Couldn&rsquo;t match &mdash; add details
-                              </p>
-                              <p className="text-muted-foreground mt-0.5 text-2xs">
-                                &ldquo;{row.label}&rdquo; is not in the food table. Fill in
-                                what you know, or remove it.
-                              </p>
-
-                              <div className="mt-2 flex flex-wrap gap-2">
-                                {(
-                                  [
-                                    ["kcal", "kcal"],
-                                    ["proteinG", "Protein g"],
-                                    ["carbsG", "Carbs g"],
-                                    ["fatG", "Fat g"],
-                                  ] as const
-                                ).map(([field, label]) => (
-                                  <div key={field} className="w-20">
-                                    <Label
-                                      htmlFor={`${field}-${row.key}`}
-                                      className="text-2xs"
-                                    >
-                                      {label}
-                                    </Label>
-                                    <Input
-                                      id={`${field}-${row.key}`}
-                                      inputMode="decimal"
-                                      value={row[field] || ""}
-                                      onChange={(event) =>
-                                        update(row.key, {
-                                          [field]: Number(event.target.value) || 0,
-                                        } as Partial<Row>)
-                                      }
-                                      className="tabular font-mono"
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(row.key)}
-                          aria-label={`Remove ${row.label}`}
-                        >
-                          <X aria-hidden />
-                        </Button>
-                      </div>
-                    </li>
+                      rowKey={row.key}
+                      item={row}
+                      /* A matched row shows its summary; only an unmatched one
+                         needs the user to fill the numbers in. */
+                      editable={false}
+                      onChange={(patch) => update(row.key, patch)}
+                      onRemove={() => remove(row.key)}
+                    />
                   ))}
                 </ul>
 
@@ -353,10 +264,5 @@ function defaultMealType(): MealType {
   return "DINNER";
 }
 
-function formatQuantity(quantity: number): string {
-  if (quantity === 0.5) return "½";
-  if (quantity === 0.25) return "¼";
-  return String(quantity);
-}
 
 export { MEAL_TYPES };

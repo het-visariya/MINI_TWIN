@@ -22,11 +22,12 @@ import {
   bmi,
   bmiCategory,
   calorieEstimate,
-  isoDate,
+  isoCalendarDate,
   mayShowWeightGoal,
   perMealSplit,
   personalRecords,
   proteinRange,
+  startOfUtcDay,
   startOfWeek,
   volumeSeries,
   waterForDate,
@@ -166,7 +167,7 @@ export function healthRepoForUser(userId: string): HealthRepo {
 
       const sessionViews: WorkoutSessionView[] = sessions.map((session) => ({
         id: session.id,
-        date: isoDate(session.date),
+        date: isoCalendarDate(session.date),
         notes: session.notes ?? undefined,
         sets: session.sets.map((set) => ({
           id: set.id,
@@ -186,7 +187,7 @@ export function healthRepoForUser(userId: string): HealthRepo {
           exercise: set.exercise,
           reps: set.reps,
           weightKg: set.weightKg,
-          date: isoDate(session.date),
+          date: isoCalendarDate(session.date),
         })),
       );
 
@@ -229,7 +230,7 @@ export function healthRepoForUser(userId: string): HealthRepo {
         ),
 
         weights: weights.map((row) => ({
-          date: isoDate(row.date),
+          date: isoCalendarDate(row.date),
           weightKg: row.weightKg,
         })),
         latestWeightKg,
@@ -237,24 +238,24 @@ export function healthRepoForUser(userId: string): HealthRepo {
         bmiVerdict: bmiCategory(bmiValue, { ageMonths: months, sex }),
 
         sleep: sleep.map((row) => ({
-          date: isoDate(row.date),
+          date: isoCalendarDate(row.date),
           minutes: row.minutes,
           quality: row.quality,
         })),
 
         water: {
           todayMl: waterForDate(
-            water.map((row) => ({ date: isoDate(row.date), ml: row.ml })),
+            water.map((row) => ({ date: isoCalendarDate(row.date), ml: row.ml })),
             now,
           ),
           target: waterTarget(latestWeightKg),
           recent: water
             .slice(0, 20)
-            .map((row) => ({ date: isoDate(row.date), ml: row.ml })),
+            .map((row) => ({ date: isoCalendarDate(row.date), ml: row.ml })),
         },
 
         mood: mood
-          ? { date: isoDate(mood.date), mood: mood.mood, energy: mood.energy }
+          ? { date: isoCalendarDate(mood.date), mood: mood.mood, energy: mood.energy }
           : null,
 
         protein: { range, perMeal: perMealSplit(range, mealsPerDay) },
@@ -416,10 +417,10 @@ export const demoHealthRepo: HealthRepo = {
 /*                                   shared                                   */
 /* -------------------------------------------------------------------------- */
 
+/* MoodCheckin.date is `@db.Date`, matched by equality, so this must be the
+   UTC midnight of the user's local day -- see startOfUtcDay. */
 function startOfToday(now: Date): Date {
-  const copy = new Date(now);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
+  return startOfUtcDay(now);
 }
 
 function asNumber(value: unknown): number | null {

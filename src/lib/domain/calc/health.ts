@@ -595,10 +595,46 @@ export function startOfWeek(date: Date): Date {
   return copy;
 }
 
+/**
+ * Format a *moment in time* as the calendar date it falls on locally.
+ *
+ * Use for timestamps — `new Date()`, a `createdAt`, anything computed from
+ * "now". For a value read out of a `@db.Date` column use `isoCalendarDate`
+ * instead: those come back as UTC midnight, and reading them with local
+ * getters shifts the day for anyone not on UTC.
+ */
 export function isoDate(date: Date): string {
   const year = date.getFullYear();
   const month = `${date.getMonth() + 1}`.padStart(2, "0");
   const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * The UTC midnight that identifies the calendar day `date` falls on locally.
+ *
+ * For building a value to *match* a `@db.Date` column. Those are stored at UTC
+ * midnight, so an equality filter built from local midnight matches nothing at
+ * all east of Greenwich — today's mood check-in or meal log simply disappears.
+ * The local getters are deliberate: the day is the user's day, and only the
+ * representation is UTC.
+ */
+export function startOfUtcDay(date: Date): Date {
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+}
+
+/**
+ * Format a value read from a `@db.Date` column.
+ *
+ * Prisma hands those back as UTC midnight, so the calendar date is carried by
+ * the UTC components and only those. The counterpart of `toCalendarDate`,
+ * which writes them the same way; the pair is what keeps a date the user
+ * picked identical to the date they are later shown.
+ */
+export function isoCalendarDate(date: Date): string {
+  const year = date.getUTCFullYear();
+  const month = `${date.getUTCMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getUTCDate()}`.padStart(2, "0");
   return `${year}-${month}-${day}`;
 }
 

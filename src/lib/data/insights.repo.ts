@@ -12,7 +12,7 @@ import { connection } from "next/server";
 
 import { insightsView } from "@/lib/data/module-fixtures";
 import { getPrisma } from "@/lib/db";
-import { isoDate, startOfWeek } from "@/lib/domain/calc/health";
+import { isoDate, isoCalendarDate, startOfWeek, startOfUtcDay } from "@/lib/domain/calc/health";
 import { roadmapProgress, skillGap } from "@/lib/domain/calc/career";
 import {
   computePulse,
@@ -149,7 +149,7 @@ export async function gatherPulseInputs(
         roadmapRatio: roadmapProgress(
           goal.roadmap.map((item) => ({
             done: item.done,
-            dueDate: item.dueDate ? isoDate(item.dueDate) : null,
+            dueDate: item.dueDate ? isoCalendarDate(item.dueDate) : null,
           })),
           now,
         ).ratio,
@@ -191,8 +191,9 @@ export async function recordDailySnapshot(userId: string, date: Date): Promise<v
   const inputs = await gatherPulseInputs(userId, date);
   const row = pulseSnapshotRow(inputs);
 
-  const day = new Date(date);
-  day.setHours(0, 0, 0, 0);
+  /* PulseSnapshot.date is `@db.Date` and this is its unique key, so a local
+     midnight here would upsert against a row that can never match. */
+  const day = startOfUtcDay(date);
 
   await getPrisma().pulseSnapshot.upsert({
     where: { userId_date: { userId, date: day } },
@@ -275,8 +276,7 @@ export async function recordWeeklyReview(userId: string, now: Date): Promise<voi
 
 /** True when today's snapshot is missing, so Home can write it lazily. */
 export async function needsSnapshot(userId: string, now: Date): Promise<boolean> {
-  const day = new Date(now);
-  day.setHours(0, 0, 0, 0);
+  const day = startOfUtcDay(now);
 
   const existing = await getPrisma().pulseSnapshot.findUnique({
     where: { userId_date: { userId, date: day } },
@@ -347,7 +347,7 @@ export function insightsRepoForUser(userId: string): InsightsRepo {
         ]);
 
       const rows: SnapshotRow[] = snapshots.map((row) => ({
-        date: isoDate(row.date),
+        date: isoCalendarDate(row.date),
         academic: row.academic,
         fitness: row.fitness,
         productivity: row.productivity,
@@ -387,7 +387,7 @@ export function insightsRepoForUser(userId: string): InsightsRepo {
                   sleep.reduce((total, row) => total + row.minutes, 0) / sleep.length,
               }
             : null,
-        nutrition: { daysLogged: new Set(meals.map((row) => isoDate(row.date))).size },
+        nutrition: { daysLogged: new Set(meals.map((row) => isoCalendarDate(row.date))).size },
         money: financeProfile
           ? {
               spentMinor: expenses.reduce((total, row) => total + row.amountMinor, 0),
@@ -454,7 +454,7 @@ export async function syncAchievements(userId: string, now: Date): Promise<void>
   ]);
 
   const keys: AchievementKey[] = evaluateAchievements({
-    consecutiveLoggedDays: longestRun(snapshots.map((row) => isoDate(row.date))),
+    consecutiveLoggedDays: longestRun(snapshots.map((row) => isoCalendarDate(row.date))),
     /* A week counts as consistent when its fitness score was full marks. */
     consistentWorkoutWeeks: Math.floor(
       snapshots.filter((row) => row.fitness >= 100).length / 7,

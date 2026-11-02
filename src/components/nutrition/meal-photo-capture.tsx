@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Camera, Loader2, RotateCw, X } from "lucide-react";
+import { AlertTriangle, Camera, Loader2, RotateCw } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { ActionForm, FieldError, FormError } from "@/components/patterns/action-form";
@@ -15,9 +15,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { MEAL_TYPES } from "@/components/nutrition/meal-composer";
+import { MealDraftRow } from "@/components/nutrition/meal-draft-row";
 import { confidenceLabel, type PhotoDraftItem } from "@/lib/domain/calc/food-vision";
 import { allergyConflicts, dailyTotals } from "@/lib/domain/calc/nutrition";
-import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/lib/validation/shared";
 
 /** The bucket caps objects at 2 MB; aim comfortably under it. */
@@ -338,82 +338,32 @@ function ConfirmCard({
 
           <ul className="space-y-2">
             {rows.map((row) => (
-              <li
+              <MealDraftRow
                 key={row.key}
-                className={cn(
-                  "rounded-lg border p-2.5",
-                  row.lowConfidence ? "border-attention/35 bg-attention/5" : "bg-surface-2/50",
-                )}
-              >
-                <input type="hidden" name="label" value={row.label} />
-                <input type="hidden" name="foodId" value={row.foodId ?? ""} />
-                <input type="hidden" name="quantity" value={row.quantity} />
-                <input type="hidden" name="kcal" value={row.kcal} />
-                <input type="hidden" name="proteinG" value={row.proteinG} />
-                <input type="hidden" name="carbsG" value={row.carbsG} />
-                <input type="hidden" name="fatG" value={row.fatG} />
-                {/* Always an estimate, and always photo-derived. The server
-                    re-derives both rather than trusting these. */}
-                <input type="hidden" name="isEstimate" value="true" />
-                <input type="hidden" name="fromPhoto" value="true" />
-
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <p className="text-sm font-medium">{row.label}</p>
-                      <span className="bg-surface-3 text-muted-foreground rounded px-1.5 py-0.5 text-2xs font-medium">
-                        Estimate
-                      </span>
-                      <span
-                        className="text-muted-foreground rounded border px-1.5 py-0.5 text-2xs"
-                        title={`The model's confidence in this row: ${Math.round(
-                          row.confidence * 100,
-                        )}%`}
-                      >
-                        {confidenceLabel(row.confidence)} confidence
-                      </span>
-                    </div>
-
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {(
-                        [
-                          ["kcal", "kcal"],
-                          ["proteinG", "Protein g"],
-                          ["carbsG", "Carbs g"],
-                          ["fatG", "Fat g"],
-                        ] as const
-                      ).map(([field, label]) => (
-                        <div key={field} className="w-20">
-                          <Label htmlFor={`photo-${field}-${row.key}`} className="text-2xs">
-                            {label}
-                          </Label>
-                          <Input
-                            id={`photo-${field}-${row.key}`}
-                            inputMode="decimal"
-                            value={row[field] || ""}
-                            onChange={(event) =>
-                              update(row.key, {
-                                [field]: Number(event.target.value) || 0,
-                              } as Partial<Row>)
-                            }
-                            className="tabular font-mono"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setRows(rows.filter((other) => other.key !== row.key))}
-                    aria-label={`Remove ${row.label}`}
-                  >
-                    <X aria-hidden />
-                  </Button>
-                </div>
-              </li>
+                rowKey={`photo-${row.key}`}
+                item={row}
+                /* Always editable: every number here is a guess from a
+                   photograph, and correcting it is the point of this step. */
+                editable
+                fromPhoto
+                chips={
+                  <>
+                    <span className="bg-surface-3 text-muted-foreground rounded px-1.5 py-0.5 text-2xs font-medium">
+                      Estimate
+                    </span>
+                    <span
+                      className="text-muted-foreground rounded border px-1.5 py-0.5 text-2xs"
+                      title={`The model's confidence in this row: ${Math.round(
+                        row.confidence * 100,
+                      )}%`}
+                    >
+                      {confidenceLabel(row.confidence)} confidence
+                    </span>
+                  </>
+                }
+                onChange={(patch) => update(row.key, patch)}
+                onRemove={() => setRows(rows.filter((other) => other.key !== row.key))}
+              />
             ))}
           </ul>
 

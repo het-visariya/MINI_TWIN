@@ -11,7 +11,7 @@ import { connection } from "next/server";
 
 import { careerView } from "@/lib/data/module-fixtures";
 import { getPrisma } from "@/lib/db";
-import { isoDate } from "@/lib/domain/calc/health";
+import { isoCalendarDate } from "@/lib/domain/calc/health";
 import {
   daysToTarget,
   placementProgress,
@@ -138,7 +138,7 @@ export function careerRepoForUser(userId: string): CareerRepo {
       const roadmap: RoadmapItemView[] = (goal?.roadmap ?? []).map((row) => ({
         id: row.id,
         title: row.title,
-        dueDate: row.dueDate ? isoDate(row.dueDate) : null,
+        dueDate: row.dueDate ? isoCalendarDate(row.dueDate) : null,
         done: row.done,
         order: row.order,
       }));
@@ -150,7 +150,7 @@ export function careerRepoForUser(userId: string): CareerRepo {
           ? {
               id: goal.id,
               targetRole: goal.targetRole,
-              targetDate: goal.targetDate ? isoDate(goal.targetDate) : null,
+              targetDate: goal.targetDate ? isoCalendarDate(goal.targetDate) : null,
               daysAway: daysToTarget(goal.targetDate, now),
               requirements: goal.requirements.map((row) => ({
                 id: row.id,
@@ -167,7 +167,7 @@ export function careerRepoForUser(userId: string): CareerRepo {
           id: row.id,
           name: row.name,
           issuer: row.issuer,
-          date: row.date ? isoDate(row.date) : null,
+          date: row.date ? isoCalendarDate(row.date) : null,
           url: row.url,
         })),
 

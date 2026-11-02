@@ -26,24 +26,37 @@ export const optionalText = (max = 500) =>
 /**
  * A calendar date as yyyy-mm-dd.
  *
- * Parsed as local midnight rather than through `new Date(string)`, which
- * reads a bare date as UTC and so lands on the previous day for anyone east of
- * Greenwich — including every user this product is built for.
+ * Parsed as UTC midnight, because every column these feed is `@db.Date` and
+ * Prisma converts a JS Date to UTC before truncating it to a day.
+ *
+ * Local midnight — the obvious choice, and what this used to do — is wrong for
+ * exactly that reason. In IST, local midnight on the 2nd is 18:30 UTC on the
+ * 1st, so Prisma stored the 1st: picking the 2nd in the expense form saved the
+ * expense a day earlier, and the same silently applied to meals, weights,
+ * workouts and habits. The raw `pg` driver happens to bind a Date using the
+ * local zone and gets this right, which is why a direct SQL probe cannot
+ * reproduce it and only a Prisma round-trip can.
+ *
+ * The pairing to keep: a value written with this must be read back with
+ * `isoCalendarDate`, which reads UTC components. Both halves are UTC, so the
+ * calendar date survives the round trip in any timezone.
  */
 export const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Use a date in the form yyyy-mm-dd.")
-  .refine((value) => !Number.isNaN(toLocalDate(value).getTime()), "That is not a real date.")
-  .transform(toLocalDate);
+  .refine((value) => !Number.isNaN(toCalendarDate(value).getTime()), "That is not a real date.")
+  .transform(toCalendarDate);
 
-export function toLocalDate(value: string): Date {
+/** yyyy-mm-dd -> UTC midnight, for a `@db.Date` column. */
+export function toCalendarDate(value: string): Date {
   const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
+  return new Date(Date.UTC(year, month - 1, day));
 }
 
 /** Dates the product will accept at all: 1900 to a century out. */
 export const boundedDate = isoDate.refine(
-  (date) => date.getFullYear() >= 1900 && date.getFullYear() <= 2126,
+  /* UTC getters, to match how the value was built. */
+  (date) => date.getUTCFullYear() >= 1900 && date.getUTCFullYear() <= 2126,
   "That date is outside the range this app works with.",
 );
 

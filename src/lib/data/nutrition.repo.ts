@@ -11,7 +11,12 @@ import { connection } from "next/server";
 
 import { nutritionView } from "@/lib/data/module-fixtures";
 import { getPrisma } from "@/lib/db";
-import { isoDate, proteinRange, type ActivityLevel } from "@/lib/domain/calc/health";
+import {
+  isoCalendarDate,
+  proteinRange,
+  startOfUtcDay,
+  type ActivityLevel,
+} from "@/lib/domain/calc/health";
 import {
   allergyConflicts,
   dailyTotals,
@@ -150,7 +155,7 @@ export function nutritionRepoForUser(userId: string): NutritionRepo {
 
         return {
           id: meal.id,
-          date: isoDate(meal.date),
+          date: isoCalendarDate(meal.date),
           mealType: meal.mealType as MealType,
           items,
           totals: dailyTotals(items),
@@ -191,7 +196,7 @@ export function nutritionRepoForUser(userId: string): NutritionRepo {
           })),
           totals: dailyTotals(saved.items),
         })),
-        daysLoggedLast14: new Set(recent.map((row) => isoDate(row.date))).size,
+        daysLoggedLast14: new Set(recent.map((row) => isoCalendarDate(row.date))).size,
       };
     },
 
@@ -400,8 +405,8 @@ function toFoodRef(row: {
   };
 }
 
+/* Delegates to the shared helper: MealLog.date is `@db.Date`, so the value
+   used to match it has to be UTC midnight for the user's local day. */
 function atMidnight(date: Date): Date {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
+  return startOfUtcDay(date);
 }
