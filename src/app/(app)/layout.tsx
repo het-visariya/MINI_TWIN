@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 
 import { AppShell } from "@/components/shell/app-shell";
 import { requireViewer } from "@/lib/auth/session";
-import { getRepo } from "@/lib/data/repo";
+import { getRemindersRepo, getRepo } from "@/lib/data/repo";
 import { nextOnboardingPath } from "@/lib/onboarding/steps";
 
 /*
@@ -31,10 +31,27 @@ export default async function AppLayout({
   }
 
   const repo = await getRepo(viewer);
-  const conversation = await repo.getConversation();
+
+  /* Both are already needed by the shell, so Jarvis's greeting costs no extra
+     query -- and no model call, which is the point: an overlay that has to
+     ask an API before it can say hello is one people stop summoning. */
+  const [conversation, snapshot, reminders] = await Promise.all([
+    repo.getConversation(),
+    repo.getTwinSnapshot(),
+    (await getRemindersRepo()).getReminders(),
+  ]);
 
   return (
-    <AppShell conversation={conversation} demo={repo.mode === "demo"}>
+    <AppShell
+      conversation={conversation}
+      demo={repo.mode === "demo"}
+      twinState={snapshot.state}
+      twinIntensity={snapshot.intensity}
+      jarvisGreeting={snapshot.greeting}
+      jarvisOneThing={snapshot.oneThing?.title ?? null}
+      notifications={reminders.notifications}
+      unread={reminders.unread}
+    >
       {children}
     </AppShell>
   );

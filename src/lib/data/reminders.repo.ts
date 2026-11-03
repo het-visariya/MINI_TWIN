@@ -63,6 +63,20 @@ export type RemindersView = {
   outbox: { to: string; subject: string; createdAt: string }[];
 };
 
+/*
+ * `now` is resolved INSIDE the body, not as a default parameter.
+ *
+ * A default is evaluated before the first statement runs -- so before
+ * `connection()` -- and Next treats `new Date()` during a prerender as an
+ * unstable value and fails the route:
+ *
+ *   Route "/home": Next.js encountered the unstable value `new Date()`
+ *
+ * Every page passed `now` explicitly, which hid this until the app layout
+ * started calling it for the notification bell. Resolving it after
+ * `connection()` has marked the render request-time makes the method safe
+ * for any caller rather than only the careful ones.
+ */
 export type RemindersRepo = {
   getReminders(now?: Date): Promise<RemindersView>;
   savePrefs(input: NotificationPrefsInput): Promise<void>;
@@ -105,8 +119,9 @@ export function remindersRepoForUser(userId: string): RemindersRepo {
   }
 
   return {
-    async getReminders(now = new Date()) {
+    async getReminders(nowInput?: Date) {
       await connection();
+      const now = nowInput ?? new Date();
 
       const [prefsRow, rules, notifications] = await Promise.all([
         prisma.notificationPrefs.findUnique({ where: { userId } }),
@@ -457,9 +472,9 @@ function appUrl(path: string): string {
 /* -------------------------------------------------------------------------- */
 
 export const demoRemindersRepo: RemindersRepo = {
-  async getReminders(now = new Date()) {
+  async getReminders(nowInput?: Date) {
     await connection();
-    return remindersView(now);
+    return remindersView(nowInput ?? new Date());
   },
 
   async savePrefs() {},

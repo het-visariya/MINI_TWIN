@@ -74,7 +74,16 @@ function useFrameLoopActive(ref: React.RefObject<HTMLDivElement | null>) {
     if (!element) return;
 
     let visible = true;
-    const sync = () => setActive(visible && !document.hidden);
+
+    /* Also paused while Jarvis is open. The overlay covers the hero anyway,
+       and two things animating behind a backdrop-blur is the one combination
+       that makes a mid-range laptop audible. The flag is an attribute on
+       <html> rather than a prop, because this component is dynamically
+       imported several levels below whatever opened the overlay. */
+    const jarvisOpen = () =>
+      document.documentElement.hasAttribute("data-jarvis-open");
+
+    const sync = () => setActive(visible && !document.hidden && !jarvisOpen());
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -86,8 +95,17 @@ function useFrameLoopActive(ref: React.RefObject<HTMLDivElement | null>) {
     observer.observe(element);
     document.addEventListener("visibilitychange", sync);
 
+    /* The attribute is toggled by JarvisProvider, so the canvas learns about
+       it the same way it learns about tab visibility: by being told. */
+    const attributes = new MutationObserver(sync);
+    attributes.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-jarvis-open"],
+    });
+
     return () => {
       observer.disconnect();
+      attributes.disconnect();
       document.removeEventListener("visibilitychange", sync);
     };
   }, [ref]);

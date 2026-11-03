@@ -10,6 +10,12 @@ import { SidebarNav } from "@/components/shell/sidebar-nav";
 import { TwinDock } from "@/components/shell/twin-dock";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { TwinFallback } from "@/components/twin/twin-fallback";
+import { JarvisProvider } from "@/components/twin/jarvis";
+import { JarvisMount } from "@/components/twin/jarvis-mount";
+import { JarvisSummon } from "@/components/twin/jarvis-summon";
+import { NotificationBell } from "@/components/shell/notification-bell";
+import { markAllRead, markRead } from "@/app/(app)/reminders/actions";
+import type { NotificationView } from "@/lib/data/reminders.repo";
 import { TwinStateProvider } from "@/components/twin/twin-state";
 import type { TwinMessage, TwinState } from "@/lib/domain/types";
 
@@ -23,6 +29,10 @@ export function AppShell({
   demo = false,
   twinState = "balanced",
   twinIntensity = 0.5,
+  jarvisGreeting = "Your twin",
+  jarvisOneThing = null,
+  notifications = [],
+  unread = 0,
 }: {
   children: React.ReactNode;
   conversation: TwinMessage[];
@@ -30,9 +40,15 @@ export function AppShell({
   demo?: boolean;
   twinState?: TwinState;
   twinIntensity?: number;
+  /** Built from the snapshot the layout already has — never an AI call. */
+  jarvisGreeting?: string;
+  jarvisOneThing?: string | null;
+  notifications?: NotificationView[];
+  unread?: number;
 }) {
   return (
     <TwinStateProvider initialState={twinState} initialIntensity={twinIntensity}>
+      <JarvisProvider>
       <div className="flex min-h-dvh flex-col">
         {demo && <DemoBanner />}
 
@@ -47,6 +63,13 @@ export function AppShell({
 
             <div className="ml-auto flex items-center gap-2">
               <QuickAdd />
+              <NotificationBell
+                notifications={notifications}
+                unread={unread}
+                onMarkRead={markRead}
+                onMarkAllRead={markAllRead}
+              />
+              <JarvisSummon />
               <ThemeToggle />
               <TwinDock messages={conversation} />
               <AccountMenu demo={demo} />
@@ -69,6 +92,16 @@ export function AppShell({
         <QuickAdd variant="fab" />
         <MobileNav />
       </div>
+
+      {/* Mounted last so it sits above the shell, and loaded only once it has
+          actually been summoned. */}
+      <JarvisMount
+        greeting={jarvisGreeting}
+        oneThing={jarvisOneThing}
+        state={twinState}
+        conversation={conversation}
+      />
+      </JarvisProvider>
     </TwinStateProvider>
   );
 }
