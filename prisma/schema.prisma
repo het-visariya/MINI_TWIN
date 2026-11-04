@@ -87,6 +87,10 @@ model User {
   consentLog AiConsentLog[]
   messages   TwinMessage[]
 
+  suggestions        TwinSuggestion[]
+  appliedActions     AppliedAction[]
+  suggestionFeedback SuggestionFeedback[]
+
   @@map("user")
 }
 
@@ -1265,4 +1269,110 @@ model AiConsentLog {
 
   @@index([userId, createdAt])
   @@map("ai_consent_log")
+}
+
+/// What a suggestion is asking to change. One value per executor, because an
+/// executor is the only thing that knows how to apply a kind safely.
+enum SuggestionKind {
+  RESCHEDULE_TASK
+  COMPLETE_TASK
+  CREATE_TASK
+  REBUILD_DAY
+  ADJUST_GOAL
+}
+
+enum SuggestionStatus {
+  /// Proposed and shown. Nothing has happened to the user's data.
+  PENDING
+  APPLIED
+  DECLINED
+  /// The underlying rows changed after it was proposed, so it can no longer
+  /// be applied truthfully.
+  SUPERSEDED
+}
+
+/// A change the twin has proposed, and the user has not yet acted on.
+///
+/// The row exists so that applying is driven by an id alone. The client sends
+/// `suggestionId` and nothing else; `params` is read from here. If the client
+/// could send params, a crafted POST would be able to apply any change at all
+/// to any row — the whole point of storing the proposal is that the thing
+/// executed is the thing the user was shown.
+model TwinSuggestion {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The twin message that proposed it, so the card can be re-rendered.
+  messageId String?
+
+  kind      SuggestionKind
+  /// The card's title, in the twin's words.
+  summary   String
+  /// Why this helps THIS user. Shown under the summary.
+  rationale String
+
+  /// Executor input. Validated per-kind at apply time, never at display time:
+  /// the rows may have moved between proposal and acceptance.
+  params Json
+  /// Human-readable before/after pairs for the card. Never executed.
+  diff   Json
+
+  confidence Float            @default(0.5)
+  status     SuggestionStatus @default(PENDING)
+
+  applied AppliedAction?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, kind, createdAt])
+  @@map("twin_suggestion")
+}
+
+/// What was overwritten when a suggestion was applied, so it can be undone.
+///
+/// Holds the previous values rather than a description of them: an undo that
+/// has to re-derive the old state is an undo that can be wrong.
+model AppliedAction {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One action per suggestion. The unique constraint is what makes a double
+  /// apply impossible even if two requests race past the status check.
+  suggestionId String         @unique
+  suggestion   TwinSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+
+  kind SuggestionKind
+
+  /// Enough to restore exactly: prior due dates, starts, progress values.
+  previous Json
+
+  undoneAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("applied_action")
+}
+
+/// Accept and decline history, used to rank what the twin offers next.
+///
+/// Separate from the suggestion row because it outlives it: a suggestion may
+/// be deleted or superseded, but "they decline rebuild_day every time" is the
+/// durable fact worth keeping.
+model SuggestionFeedback {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind     SuggestionKind
+  accepted Boolean
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, kind, createdAt])
+  @@map("suggestion_feedback")
 }
