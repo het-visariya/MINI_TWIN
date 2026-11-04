@@ -26,10 +26,18 @@ const TIMEOUT_MS = 60_000;
 /**
  * How many times the model may call tools before it has to answer.
  *
- * A ceiling, not a target. Without one a model that keeps re-reading the same
- * number loops until the timeout, and the user watches nothing happen.
+ * A ceiling, not a target. Without one, a model that keeps re-reading the
+ * same number loops until the timeout and the user watches nothing happen.
+ *
+ * Six rather than four, which was measured rather than guessed. Asked to move
+ * a deadline, the model spent its rounds on getTasks, getTasks again,
+ * getAcademicStatus and getTodayPlan — reasonable groundwork — and then had
+ * none left to call the propose tool, so it answered "I could not gather
+ * everything I needed". The ceiling was cutting off the useful step, not a
+ * runaway loop. With thirteen tools, exploring a few before acting is the
+ * normal shape of an answer.
  */
-export const MAX_TOOL_ROUNDS = 4;
+export const MAX_TOOL_ROUNDS = 6;
 
 /** An OpenAPI-subset schema, as Gemini's `functionDeclarations` expects. */
 export type ToolSchema = {

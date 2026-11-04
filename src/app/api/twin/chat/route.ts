@@ -32,6 +32,7 @@ import {
   saveTurn,
   type UsedNumber,
 } from "@/lib/data/twin.repo";
+import { suggestionsRepoForUser, type SuggestionView } from "@/lib/data/suggestions.repo";
 import {
   TWIN_CONSENT_CATEGORIES,
   TWIN_CONSENT_FEATURE,
@@ -113,10 +114,15 @@ export async function POST(request: Request) {
       : "One question, with health and food data withheld.",
   });
 
-  const [profile, account, history] = await Promise.all([
+  const suggestions = suggestionsRepoForUser(userId);
+
+  const [profile, account, history, acceptance] = await Promise.all([
     getPrisma().profile.findUnique({ where: { userId }, select: { traits: true } }),
     getPrisma().user.findUnique({ where: { id: userId }, select: { name: true } }),
     recentTurns(userId, threadId),
+    /* What the user has done with past suggestions, so a kind they keep
+       declining is offered more sparingly rather than endlessly re-pitched. */
+    suggestions.acceptanceByKind(),
   ]);
 
   await saveTurn(userId, threadId, { author: "USER", text: message });
@@ -126,6 +132,7 @@ export async function POST(request: Request) {
     localTime: new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata" }),
     traits: traitLines(profile?.traits),
     healthDataAllowed,
+    acceptance,
   });
 
   const turns: LlmTurn[] = [
@@ -143,7 +150,7 @@ export async function POST(request: Request) {
      the numbers it used — the chips have to survive a page reload. */
   let answer = "";
   const used: UsedNumber[] = [];
-  let proposal: { summary: string; changes: { label: string; detail: string }[] } | undefined;
+  let suggestion: SuggestionView | null = null;
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -167,9 +174,22 @@ export async function POST(request: Request) {
               }
             }
 
-            /* Last proposal wins. Two cards for one answer would ask the user
-               to apply two things with one decision. */
-            if (run.proposal) proposal = run.proposal;
+            /*
+             * Persisted here, as it is produced, so the card the user sees
+             * carries a real id. Apply later reads params from this row —
+             * never from the client — which is what makes the thing executed
+             * the same as the thing shown.
+             *
+             * Last one wins: two cards for one answer would ask the user to
+             * apply two changes with one decision.
+             */
+            if (run.suggestion) {
+              const stored = await suggestions.create(run.suggestion);
+
+              /* `create` returns null when the model's params are malformed.
+                 No card is better than one that cannot be applied. */
+              if (stored) suggestion = stored;
+            }
 
             return run.result;
           },
@@ -185,14 +205,14 @@ export async function POST(request: Request) {
         }
 
         if (used.length > 0) send({ type: "used", used });
-        if (proposal) send({ type: "proposal", proposal });
+        if (suggestion) send({ type: "suggestion", suggestion });
 
         const messageId = answer.trim()
           ? await saveTurn(userId, threadId, {
               author: "TWIN",
               text: answer.trim(),
               sources: used,
-              proposal,
+              proposal: suggestion ?? undefined,
             })
           : null;
 

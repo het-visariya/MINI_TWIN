@@ -1,9 +1,14 @@
 "use client";
 
-import { Check, Pencil, Sparkles, X } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import {
+  applySuggestion,
+  declineSuggestion,
+  undoAppliedAction,
+} from "@/app/(app)/twin/actions";
 import { ConsentSheet } from "@/components/patterns/consent-sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -32,62 +37,145 @@ export function TypingIndicator() {
  */
 function PlanProposalCard({ proposal }: { proposal: PlanProposal }) {
   const [status, setStatus] = useState(proposal.status);
+  const [undoId, setUndoId] = useState<string | null>(proposal.appliedActionId ?? null);
+  const [pending, setPending] = useState<"apply" | "decline" | "undo" | null>(null);
+
+  /*
+   * Lines to show. `diff` is the current shape; `changes` is what the demo
+   * fixtures still carry, and they predate the suggestion engine. Supporting
+   * both keeps demo mode honest rather than silently blank.
+   */
+  const lines =
+    proposal.diff?.length
+      ? proposal.diff.map((d) => ({ label: d.label, detail: `${d.before} → ${d.after}` }))
+      : (proposal.changes ?? []);
+
+  /**
+   * Apply.
+   *
+   * Only the id is sent. The server reads the executable params from the
+   * stored row, so this button cannot be made to apply something other than
+   * what is written above it.
+   */
+  async function apply() {
+    setPending("apply");
+
+    const result = await applySuggestion(proposal.id);
+    setPending(null);
+
+    if (!result.ok) {
+      /* A refusal is usually the plan having moved since the twin suggested
+         this, and the server's sentence names the actual obstacle — so it is
+         shown as written rather than replaced with something generic. */
+      setStatus("superseded");
+      toast.error(result.error);
+      return;
+    }
+
+    setStatus("accepted");
+    setUndoId(result.data.undoId);
+
+    toast.success("Done — your plan is updated.", {
+      /* Undo lives on the toast because that is where someone looks in the
+         two seconds after realising they did not mean it. */
+      action: result.data.undoId
+        ? { label: "Undo", onClick: () => void undo(result.data.undoId!) }
+        : undefined,
+    });
+  }
+
+  async function decline() {
+    setPending("decline");
+
+    const result = await declineSuggestion(proposal.id);
+    setPending(null);
+
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+
+    setStatus("declined");
+    /* Said out loud because it is a promise the product keeps: declining
+       teaches the twin, it does not merely dismiss a card. */
+    toast.info("Noted — your twin will offer this kind less often.");
+  }
+
+  async function undo(actionId: string) {
+    setPending("undo");
+
+    const result = await undoAppliedAction(actionId);
+    setPending(null);
+
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+
+    setStatus("proposed");
+    setUndoId(null);
+    toast.success("Reverted. Your plan is back as it was.");
+  }
 
   return (
     <div className="border-accent/25 bg-accent/5 mt-3 rounded-lg border p-3">
       <p className="text-sm font-medium">{proposal.summary}</p>
 
-      <ul className="mt-2.5 space-y-1.5">
-        {proposal.changes.map((change) => (
-          <li key={change.label} className="text-xs">
-            <span className="font-medium">{change.label}:</span>{" "}
-            <span className="text-muted-foreground">{change.detail}</span>
-          </li>
-        ))}
-      </ul>
+      {proposal.rationale && (
+        <p className="text-muted-foreground mt-1 text-xs">{proposal.rationale}</p>
+      )}
+
+      {lines.length > 0 && (
+        <ul className="mt-2.5 space-y-1.5">
+          {lines.map((change) => (
+            <li key={change.label} className="text-xs">
+              <span className="font-medium">{change.label}:</span>{" "}
+              <span className="text-muted-foreground">{change.detail}</span>
+            </li>
+          ))}
+        </ul>
+      )}
 
       {status === "proposed" ? (
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Button
             variant="primary"
             size="sm"
-            onClick={() => {
-              setStatus("accepted");
-              toast.success("Plan accepted", {
-                description: "Nothing is saved in this preview build.",
-              });
-            }}
+            disabled={pending !== null}
+            onClick={() => void apply()}
           >
             <Check aria-hidden />
-            Accept
+            {pending === "apply" ? "Applying…" : "Apply"}
           </Button>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
-            onClick={() =>
-              toast.info("Opened for editing", {
-                description: "Plan editing arrives with the planning engine.",
-              })
-            }
+            disabled={pending !== null}
+            onClick={() => void decline()}
           >
-            <Pencil aria-hidden />
-            Change something
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => setStatus("declined")}>
             <X aria-hidden />
             Decline
           </Button>
         </div>
-      ) : (
-        <p
-          className={cn(
-            "mt-3 text-xs font-medium",
-            status === "accepted" ? "text-ok" : "text-muted-foreground",
+      ) : status === "accepted" ? (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <p className="text-ok text-xs font-medium">Applied to your plan.</p>
+          {undoId && (
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={pending !== null}
+              onClick={() => void undo(undoId)}
+            >
+              {pending === "undo" ? "Undoing…" : "Undo"}
+            </Button>
           )}
-        >
-          {status === "accepted"
-            ? "Accepted. You can change it any time."
-            : "Declined. Your plan is unchanged."}
+        </div>
+      ) : (
+        <p className="text-muted-foreground mt-3 text-xs font-medium">
+          {status === "declined"
+            ? "Declined. Your plan is unchanged."
+            : "This changed since your twin suggested it — ask again for the current plan."}
         </p>
       )}
     </div>

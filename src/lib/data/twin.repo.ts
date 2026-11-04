@@ -16,7 +16,8 @@
 import { forUser } from "@/lib/data/repo";
 import { getPrisma } from "@/lib/db";
 import { isoDate } from "@/lib/domain/calc/health";
-import { PROPOSAL_ONLY_TOOLS } from "@/lib/domain/twin";
+import { PROPOSAL_ONLY_TOOLS, TOOL_TO_KIND } from "@/lib/domain/twin";
+import type { SuggestionInput, SuggestionKind } from "@/lib/domain/twin-suggestions";
 import type { ToolCall } from "@/lib/integrations/twin-llm";
 
 /** What the UI shows as "numbers used" chips under an answer. */
@@ -27,11 +28,12 @@ export type ToolRun = {
   result: unknown;
   /** Shown to the user. Empty for a tool that produced no figure. */
   used: UsedNumber[];
-  /** Set by the proposal tools; becomes an Apply / Edit / Dismiss card. */
-  proposal?: {
-    summary: string;
-    changes: { label: string; detail: string }[];
-  };
+  /**
+   * Set by the `propose*` tools. A typed suggestion, not prose: the route
+   * stores it and the stored row is what Apply later executes, so what the
+   * user is shown and what runs are the same object.
+   */
+  suggestion?: SuggestionInput;
 };
 
 /**
@@ -204,13 +206,16 @@ export async function runTwinTool(
     /* ---------------------------------------------------------------- */
 
     case "simulatePostpone": {
+      /* A prediction, not a proposal. Kept separate so the twin can answer
+         "what would happen if" without putting a card on screen — asking is
+         not the same as wanting to change something. */
       const taskId = String(call.args.taskId ?? "");
       const productivity = await repo.getProductivity();
       const task = productivity.tasks.find((row) => row.id === taskId);
 
       if (!task) {
         return {
-          result: { error: "No task with that id. Call getTasks first and use an id from it." },
+          result: { error: "No task with that id. Call getTasks first." },
           used: [],
         };
       }
@@ -219,10 +224,8 @@ export async function runTwinTool(
 
       return {
         result: {
-          task: { title: task.title, due: task.due ?? null, estimateMinutes: task.estimateMinutes },
-          /* The model is told plainly that this is a prediction, so it does
-             not report it as something that happened. */
           nature: "prediction",
+          task: { title: task.title, due: task.due ?? null, estimateMinutes: task.estimateMinutes },
           timeBudget: planning.timeBudget,
           conflicts: planning.conflicts,
         },
@@ -230,64 +233,39 @@ export async function runTwinTool(
           { label: task.title, value: `${task.estimateMinutes} min` },
           { label: "Due", value: task.due ? isoDate(new Date(task.due)) : "no date" },
         ],
-        proposal: {
-          summary: `Push "${task.title}" to tomorrow`,
-          changes: [
-            {
-              label: task.title,
-              detail: `${task.estimateMinutes} minutes moves to tomorrow${
-                task.due ? `, due ${isoDate(new Date(task.due))}` : ""
-              }`,
-            },
-          ],
-        },
       };
     }
 
-    case "proposeDayRebuild": {
-      const constraints = String(call.args.constraints ?? "").slice(0, 300);
-      const snapshot = await repo.getTwinSnapshot();
+    /* ------------------------------------------------------------------ */
+    /*  Proposals. Each builds a typed suggestion and changes nothing.     */
+    /* ------------------------------------------------------------------ */
+
+    case "proposeRescheduleTask":
+    case "proposeCompleteTask":
+    case "proposeCreateTask":
+    case "proposeRebuildDay":
+    case "proposeAdjustGoal": {
+      const kind = TOOL_TO_KIND[call.name] as SuggestionKind;
+
+      const suggestion: SuggestionInput = {
+        kind,
+        summary: String(call.args.summary ?? "A change to your plan").slice(0, 160),
+        rationale: String(call.args.rationale ?? "").slice(0, 400),
+        confidence: clamp01(Number(call.args.confidence ?? 0.5)),
+        diff: [],
+        params: paramsFromArgs(call.name, call.args),
+      };
 
       return {
         result: {
           nature: "proposal",
-          constraints,
-          today: snapshot.today.map((item) => ({
-            title: item.title,
-            start: item.start ?? null,
-            minutes: item.minutes,
-            flexibility: item.flexibility,
-          })),
-          timeBudget: snapshot.timeBudget,
-          instruction:
-            "Describe the rearrangement you suggest. It is shown to the user as a card they apply or dismiss; it has not happened.",
-        },
-        used: [
-          { label: "Available today", value: `${round1(snapshot.timeBudget.availableHours)}h` },
-        ],
-        proposal: {
-          summary: "Rebuild the rest of today",
-          changes: [{ label: "Constraints", detail: constraints || "none given" }],
-        },
-      };
-    }
-
-    case "logEntry": {
-      const type = String(call.args.type ?? "task");
-      const payload = String(call.args.payload ?? "").slice(0, 300);
-
-      return {
-        result: {
-          nature: "draft",
-          type,
-          payload,
-          instruction: "This is a draft. Tell the user what you have drafted and that they must confirm it.",
+          /* The model is told plainly that nothing has happened, so it does
+             not then describe the change in the past tense. */
+          status: "shown to the user as a card; not applied",
+          kind,
         },
         used: [],
-        proposal: {
-          summary: `Draft ${type}: ${payload}`,
-          changes: [{ label: type, detail: payload }],
-        },
+        suggestion,
       };
     }
 
@@ -374,4 +352,61 @@ export async function logConsent(
 
 function round1(value: number): number {
   return Math.round(value * 10) / 10;
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0.5;
+  return Math.min(1, Math.max(0, value));
+}
+
+/** Empty string means "clear it"; the model cannot send null through JSON. */
+function orNull(value: unknown): string | null {
+  const text = String(value ?? "").trim();
+  return text.length === 0 ? null : text;
+}
+
+/**
+ * Pull executor params out of the tool arguments.
+ *
+ * Shape only — no validation. The zod schema in `twin-suggestions` is the
+ * gate, and it runs twice: here on the way into storage, and again when the
+ * user presses Apply. Doing it twice is what caught the JSON round-trip bug
+ * where a stored Date no longer matched the schema that wrote it.
+ */
+function paramsFromArgs(tool: string, args: Record<string, unknown>): unknown {
+  switch (tool) {
+    case "proposeRescheduleTask":
+      return { taskId: args.taskId, due: orNull(args.due) };
+
+    case "proposeCompleteTask":
+      return { taskId: args.taskId };
+
+    case "proposeCreateTask":
+      return {
+        title: args.title,
+        domain: args.domain ?? "PRODUCTIVITY",
+        ...(orNull(args.due) ? { due: orNull(args.due) } : {}),
+        estimateMinutes: args.estimateMinutes ?? 30,
+      };
+
+    case "proposeRebuildDay":
+      return {
+        moves: Array.isArray(args.moves)
+          ? args.moves.map((move) => {
+              const entry = move as Record<string, unknown>;
+              return { commitmentId: entry.commitmentId, start: orNull(entry.start) };
+            })
+          : [],
+      };
+
+    case "proposeAdjustGoal":
+      return {
+        goalId: args.goalId,
+        ...(args.targetDate !== undefined ? { targetDate: orNull(args.targetDate) } : {}),
+        ...(args.weeklyHours !== undefined ? { weeklyHours: args.weeklyHours } : {}),
+      };
+
+    default:
+      return {};
+  }
 }

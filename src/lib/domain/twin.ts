@@ -24,10 +24,10 @@ const NO_ARGS = { type: "OBJECT", properties: {} } as const;
 /**
  * Read-only tools, and the two that only ever produce a draft.
  *
- * Nothing here writes. `simulatePostpone` and `proposeDayRebuild` return a
- * plan; `logEntry` returns a draft entry. Each becomes a card the user applies
- * or dismisses — the model cannot change a row by describing one, which is
- * what keeps a confident mistake from becoming a lost afternoon.
+ * Nothing here writes. The reads answer questions; `simulatePostpone`
+ * predicts; the five `propose*` tools produce a card the user applies or
+ * declines. The model cannot change a row by describing one, which is what
+ * keeps a confident mistake from becoming a lost afternoon.
  */
 export const TWIN_TOOLS: ToolSchema[] = [
   {
@@ -83,49 +83,152 @@ export const TWIN_TOOLS: ToolSchema[] = [
       required: ["taskId"],
     },
   },
+  /* ------------------------------------------------------------------ */
+  /*  Proposals. One tool per kind, deliberately.                        */
+  /*                                                                      */
+  /*  A single `propose(kind, params)` would hand the model a union to    */
+  /*  get right, and a union is the shape models most reliably get wrong: */
+  /*  the params for a rebuild arriving under the reschedule kind         */
+  /*  validates as neither. Five precise schemas cannot be confused, and  */
+  /*  a malformed call fails at the one tool rather than poisoning the    */
+  /*  whole proposal path.                                                */
+  /*                                                                      */
+  /*  None of these change anything. Each produces a card the user        */
+  /*  applies or declines, and the server re-validates at that moment.    */
+  /* ------------------------------------------------------------------ */
   {
-    name: "proposeDayRebuild",
+    name: "proposeRescheduleTask",
     description:
-      "A rearranged plan for the rest of today under the stated constraints. Returns a proposal the user applies or dismisses; it changes nothing by itself.",
+      "Offer to move a task's deadline. Call getTasks first and use an id from it. Produces a card the user accepts or declines; nothing moves until they do.",
     parameters: {
       type: "OBJECT",
       properties: {
-        constraints: {
+        taskId: { type: "STRING", description: "The id from getTasks." },
+        due: {
+          type: "STRING",
+          description: "The new deadline as yyyy-mm-dd, or an empty string to clear it.",
+        },
+        summary: { type: "STRING", description: "The card title, eight words or fewer." },
+        rationale: {
           type: "STRING",
           description:
-            'What has to hold, in the user\'s words: "keep the 4pm lab", "two hours for the assignment".',
+            "Why this helps THIS user, citing their own numbers. Not a general principle.",
         },
+        confidence: { type: "NUMBER", description: "0 to 1." },
       },
-      required: ["constraints"],
+      required: ["taskId", "due", "summary", "rationale"],
     },
   },
   {
-    name: "logEntry",
+    name: "proposeCompleteTask",
     description:
-      "Draft an entry the user might want to record — a task, a meal, an expense. Produces a draft for them to confirm. It is never saved by calling this.",
+      "Offer to mark a task done, when the user says they have finished it. Produces a card; nothing is marked until they accept.",
     parameters: {
       type: "OBJECT",
       properties: {
-        type: {
-          type: "STRING",
-          enum: ["task", "meal", "expense", "habit"],
-        },
-        payload: {
-          type: "STRING",
-          description: "What to record, in plain words.",
-        },
+        taskId: { type: "STRING" },
+        summary: { type: "STRING" },
+        rationale: { type: "STRING" },
+        confidence: { type: "NUMBER" },
       },
-      required: ["type", "payload"],
+      required: ["taskId", "summary", "rationale"],
+    },
+  },
+  {
+    name: "proposeCreateTask",
+    description:
+      "Offer to add a task. Use when the user describes something they need to do. Produces a card; nothing is added until they accept.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        title: { type: "STRING" },
+        domain: {
+          type: "STRING",
+          enum: [
+            "ACADEMIC",
+            "PRODUCTIVITY",
+            "HEALTH",
+            "NUTRITION",
+            "FINANCE",
+            "CAREER",
+            "GOALS",
+            "ROUTINE",
+          ],
+        },
+        due: { type: "STRING", description: "yyyy-mm-dd, or empty for no deadline." },
+        estimateMinutes: { type: "NUMBER" },
+        summary: { type: "STRING" },
+        rationale: { type: "STRING" },
+        confidence: { type: "NUMBER" },
+      },
+      required: ["title", "summary", "rationale"],
+    },
+  },
+  {
+    name: "proposeRebuildDay",
+    description:
+      "Offer a rearranged day. Call getTodayPlan first and move only what needs to move. Fixed commitments cannot be moved and the proposal will be refused if you try. Produces a card; nothing moves until the user accepts.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        moves: {
+          type: "ARRAY",
+          description: "Only the items that change. Leave everything else out.",
+          items: {
+            type: "OBJECT",
+            properties: {
+              commitmentId: { type: "STRING" },
+              start: {
+                type: "STRING",
+                description: "New start as an ISO datetime, or empty to unschedule it.",
+              },
+            },
+            required: ["commitmentId", "start"],
+          },
+        },
+        summary: { type: "STRING" },
+        rationale: { type: "STRING" },
+        confidence: { type: "NUMBER" },
+      },
+      required: ["moves", "summary", "rationale"],
+    },
+  },
+  {
+    name: "proposeAdjustGoal",
+    description:
+      "Offer to change a goal's target date or weekly hours. Call getGoals first. Produces a card; nothing changes until the user accepts.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        goalId: { type: "STRING" },
+        targetDate: { type: "STRING", description: "yyyy-mm-dd, or empty to clear." },
+        weeklyHours: { type: "NUMBER" },
+        summary: { type: "STRING" },
+        rationale: { type: "STRING" },
+        confidence: { type: "NUMBER" },
+      },
+      required: ["goalId", "summary", "rationale"],
     },
   },
 ];
 
 /** Tool names that may only ever produce a draft, never a committed change. */
 export const PROPOSAL_ONLY_TOOLS = new Set([
-  "simulatePostpone",
-  "proposeDayRebuild",
-  "logEntry",
+  "proposeRescheduleTask",
+  "proposeCompleteTask",
+  "proposeCreateTask",
+  "proposeRebuildDay",
+  "proposeAdjustGoal",
 ]);
+
+/** Tool name -> the SuggestionKind it produces. */
+export const TOOL_TO_KIND: Record<string, string> = {
+  proposeRescheduleTask: "RESCHEDULE_TASK",
+  proposeCompleteTask: "COMPLETE_TASK",
+  proposeCreateTask: "CREATE_TASK",
+  proposeRebuildDay: "REBUILD_DAY",
+  proposeAdjustGoal: "ADJUST_GOAL",
+};
 
 /* -------------------------------------------------------------------------- */
 /*                                   prompt                                   */
@@ -147,8 +250,16 @@ export function twinSystemPrompt(input: {
   traits: string[];
   /** False when the user has withheld health data for this session. */
   healthDataAllowed: boolean;
+  /**
+   * How often each kind of suggestion has been accepted lately.
+   *
+   * Passed as guidance rather than used to filter the tool list: a kind the
+   * user usually declines should be offered more sparingly and argued for
+   * better, not made impossible. They may want it today.
+   */
+  acceptance?: Record<string, { yes: number; no: number }>;
 }): string {
-  const { firstName, localTime, traits, healthDataAllowed } = input;
+  const { firstName, localTime, traits, healthDataAllowed, acceptance } = input;
 
   return [
     "You are this person's digital twin inside an app that holds their academics, gym, food, money and goals in one place.",
@@ -165,7 +276,13 @@ export function twinSystemPrompt(input: {
     "",
     "## Changes",
     "",
-    "You cannot change anything. `simulatePostpone`, `proposeDayRebuild` and `logEntry` produce a proposal the user applies or dismisses themselves. Describe what you are proposing and why; never say you have done, saved, moved or logged something.",
+    "**When the user asks you to change something, call the matching `propose*` tool.** Describing the change in words instead is the one failure that makes you useless: they asked for it to happen, and a sentence is not a thing they can accept. \"Move X to Friday\", \"mark Y done\", \"add a task for Z\", \"rebuild my day\" are all requests to call a tool.",
+    "",
+    "You cannot change anything yourself. The `propose*` tools create a card the user applies or declines; until they do, nothing has happened. So say what you are proposing and why — never say you have already done, moved, added or logged it.",
+    "",
+    "Unprompted, propose only when the numbers plainly call for it and you say which numbers. A twin that proposes something after every message is one people stop reading. One proposal per answer, either way.",
+    "",
+    "Put the reason in `rationale`, and make it about THIS person: \"your lab report is due Thursday and you have 2.5 free hours before then\", not \"finishing work early reduces stress\".",
     "",
     "## Tone",
     "",
@@ -190,9 +307,48 @@ export function twinSystemPrompt(input: {
     traits.length > 0
       ? `\n## What they have told you\n\n${traits.map((t) => `- ${t}`).join("\n")}`
       : "",
+    rankingNote(acceptance),
   ]
     .filter((line) => line !== "")
     .join("\n");
+}
+
+/**
+ * Turn accept/decline history into one line of guidance.
+ *
+ * Only kinds with a clear pattern are mentioned. Reciting every counter would
+ * spend the model's attention on noise, and two declines out of three is not
+ * yet a preference.
+ */
+function rankingNote(acceptance?: Record<string, { yes: number; no: number }>): string {
+  if (!acceptance) return "";
+
+  const avoided: string[] = [];
+  const welcomed: string[] = [];
+
+  for (const [kind, counts] of Object.entries(acceptance)) {
+    const total = counts.yes + counts.no;
+    if (total < 3) continue;
+
+    if (counts.no / total >= 0.7) avoided.push(kind);
+    else if (counts.yes / total >= 0.7) welcomed.push(kind);
+  }
+
+  if (avoided.length === 0 && welcomed.length === 0) return "";
+
+  const lines = ["\n## What they do with your suggestions", ""];
+
+  if (avoided.length > 0) {
+    lines.push(
+      `They usually decline these: ${avoided.join(", ")}. Offer them only when the numbers really call for it, and say which numbers.`,
+    );
+  }
+
+  if (welcomed.length > 0) {
+    lines.push(`They usually accept these: ${welcomed.join(", ")}.`);
+  }
+
+  return lines.join("\n");
 }
 
 /* -------------------------------------------------------------------------- */

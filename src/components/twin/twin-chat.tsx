@@ -138,10 +138,25 @@ export function TwinChat({
                 setToolRunning(String(frame.name ?? ""));
               } else if (frame.type === "used") {
                 sources = frame.used as TwinMessage["sources"];
-              } else if (frame.type === "proposal") {
+              } else if (frame.type === "suggestion") {
+                /* The id is the stored TwinSuggestion row's, not one made up
+                   here. Apply sends exactly that id, and the server reads the
+                   params from the row — so a card cannot be made to apply
+                   something other than what it displays. */
+                const stored = frame.suggestion as {
+                  id: string;
+                  summary: string;
+                  rationale: string;
+                  diff: { label: string; before: string; after: string }[];
+                  confidence: number;
+                };
+
                 proposal = {
-                  ...(frame.proposal as { summary: string; changes: { label: string; detail: string }[] }),
-                  id: `proposal-${Date.now()}`,
+                  id: stored.id,
+                  summary: stored.summary,
+                  rationale: stored.rationale,
+                  diff: stored.diff,
+                  confidence: stored.confidence,
                   status: "proposed",
                 };
               } else if (frame.type === "error") {
