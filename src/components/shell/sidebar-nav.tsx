@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { navGroups } from "@/lib/navigation";
 
 export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
@@ -13,7 +13,7 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
     <nav aria-label="Modules" className="flex flex-col gap-5">
       {navGroups.map((group) => (
         <div key={group.label}>
-          <p className="text-muted-foreground px-2 pb-1.5 text-2xs font-semibold tracking-wide uppercase">
+          <p className="text-muted-foreground px-2 pb-1.5 text-2xs font-medium tracking-wide uppercase">
             {group.label}
           </p>
           <ul className="space-y-0.5">
@@ -35,11 +35,6 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
                   >
                     <item.icon className="size-4 shrink-0" aria-hidden />
                     <span className="truncate">{item.label}</span>
-                    {item.upcoming && (
-                      <span className="text-muted-foreground bg-muted ml-auto shrink-0 rounded px-1.5 py-0.5 text-2xs">
-                        Soon
-                      </span>
-                    )}
                   </Link>
                 </li>
               );

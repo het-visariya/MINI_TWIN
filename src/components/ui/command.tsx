@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Command as CommandPrimitive } from "cmdk"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 import {
   Dialog,
@@ -48,10 +48,6 @@ function CommandDialog({
 }) {
   return (
     <Dialog {...props}>
-      <DialogHeader className="sr-only">
-        <DialogTitle>{title}</DialogTitle>
-        <DialogDescription>{description}</DialogDescription>
-      </DialogHeader>
       <DialogContent
         className={cn(
           "top-1/3 translate-y-0 overflow-hidden rounded-xl! p-0",
@@ -59,7 +55,23 @@ function CommandDialog({
         )}
         showCloseButton={showCloseButton}
       >
-        {children}
+        {/*
+         * Both of these were wrong and each threw its own error.
+         *
+         * The header sat outside DialogContent, so Radix could not find a
+         * title inside the content it labels and warned about it on every
+         * open. It belongs in here.
+         *
+         * And `children` were rendered bare — with no <Command> around them,
+         * CommandInput mounts without cmdk's context and dies on
+         * `store.subscribe` of undefined. Every consumer of CommandDialog was
+         * throwing an uncaught TypeError on mount.
+         */}
+        <DialogHeader className="sr-only">
+          <DialogTitle>{title}</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <Command>{children}</Command>
       </DialogContent>
     </Dialog>
   )

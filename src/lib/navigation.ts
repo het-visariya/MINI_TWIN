@@ -19,8 +19,6 @@ export type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Modules whose screens arrive in phase 2 are marked, never hidden. */
-  upcoming?: boolean;
 };
 
 export type NavGroup = {
@@ -28,7 +26,7 @@ export type NavGroup = {
   items: NavItem[];
 };
 
-/** The 16 modules, grouped the way the user thinks about their day. */
+/** Every module, grouped the way the user thinks about their day. */
 export const navGroups: NavGroup[] = [
   {
     label: "Today",
@@ -43,24 +41,24 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/goals", label: "Goals & planning", icon: Target },
       { href: "/regreter", label: "Regreter & future self", icon: Scale },
-      { href: "/insights", label: "Insights & reviews", icon: LineChart, upcoming: true },
+      { href: "/insights", label: "Insights & reviews", icon: LineChart },
     ],
   },
   {
     label: "Life",
     items: [
-      { href: "/health", label: "Health", icon: Dumbbell, upcoming: true },
-      { href: "/nutrition", label: "Nutrition", icon: Salad, upcoming: true },
-      { href: "/finance", label: "Finance", icon: Wallet, upcoming: true },
-      { href: "/career", label: "Career", icon: Briefcase, upcoming: true },
+      { href: "/health", label: "Health", icon: Dumbbell },
+      { href: "/nutrition", label: "Nutrition", icon: Salad },
+      { href: "/finance", label: "Finance", icon: Wallet },
+      { href: "/career", label: "Career", icon: Briefcase },
     ],
   },
   {
     label: "Twin",
     items: [
       { href: "/twin", label: "Ask my twin", icon: Sparkles },
-      { href: "/reminders", label: "Reminders", icon: Bell, upcoming: true },
-      { href: "/settings", label: "Privacy & control", icon: Settings, upcoming: true },
+      { href: "/reminders", label: "Reminders", icon: Bell },
+      { href: "/settings", label: "Privacy & control", icon: Settings },
     ],
   },
 ];

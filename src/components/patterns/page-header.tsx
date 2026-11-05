@@ -15,7 +15,7 @@ export function PageHeader({
   return (
     <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
+        <h1 className="text-xl font-medium tracking-tight sm:text-2xl">{title}</h1>
         <p className="text-muted-foreground mt-1 max-w-2xl text-sm">{description}</p>
       </div>
       <div className="flex items-center gap-2">

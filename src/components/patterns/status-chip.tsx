@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, CircleAlert, Clock, FlaskConical } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { Status } from "@/lib/domain/types";
 
 type ChipKind = Status | "simulation";

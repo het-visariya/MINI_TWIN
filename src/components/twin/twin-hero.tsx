@@ -36,10 +36,10 @@ export function TwinHero({
         <div className="min-w-0">
           <p className="text-muted-foreground text-sm">{greeting}</p>
 
-          <p className="text-primary mt-4 text-2xs font-semibold tracking-wide uppercase">
+          <p className="text-accent mt-4 text-2xs font-medium tracking-wide uppercase">
             Your one thing
           </p>
-          <h1 className="mt-1 text-xl leading-snug font-semibold tracking-tight sm:text-2xl">
+          <h1 className="mt-1 text-xl leading-snug font-medium tracking-tight sm:text-2xl">
             {oneThing.title}
           </h1>
           <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
@@ -51,7 +51,7 @@ export function TwinHero({
               Start this now
               <ArrowRight aria-hidden />
             </Button>
-            <Button variant="ai-soft" size="lg" asChild>
+            <Button variant="secondary" size="lg" asChild>
               <Link href={{ pathname: "/regreter", query: { about: "one-thing" } }}>
                 <Sparkles aria-hidden />
                 What if I postpone it?
@@ -63,7 +63,7 @@ export function TwinHero({
             <ul className="mt-5 space-y-1.5 border-t pt-4">
               {brief.map((line) => (
                 <li key={line} className="text-muted-foreground flex gap-2 text-xs">
-                  <span aria-hidden className="text-primary">
+                  <span aria-hidden className="text-accent">
                     •
                   </span>
                   <span>{line}</span>

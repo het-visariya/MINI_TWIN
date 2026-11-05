@@ -1,0 +1,1378 @@
+// Digital Twin — data model.
+//
+// Two rules hold across this entire file:
+//
+//  1. Every domain row carries `userId` and cascades on user delete, so
+//     "export all my data" and "delete my account" are complete by
+//     construction rather than by remembering to add a table to a list.
+//  2. Nothing here stores an inference about the user that they cannot see.
+//     Traits are explicit answers; derived signals are recomputed from the
+//     user's own rows and shown back to them in Settings.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Better Auth core
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+model User {
+  id            String   @id
+  name          String
+  email         String   @unique
+  emailVerified Boolean  @default(false)
+  image         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions Session[]
+  accounts Account[]
+  profile  Profile?
+
+  subjects    Subject[]
+  attendance  AttendanceRecord[]
+  commitments Commitment[]
+  tasks       Task[]
+  goals       Goal[]
+  habits      Habit[]
+  habitLogs   HabitLog[]
+
+  healthProfile   HealthProfile?
+  workoutSessions WorkoutSession[]
+  workoutSets     WorkoutSet[]
+  weights         WeightLog[]
+  sleep           SleepLog[]
+  water           WaterLog[]
+  moods           MoodCheckin[]
+
+  dietProfile DietProfile?
+  meals       MealLog[]
+  mealItems   MealItem[]
+  mealPhotos  MealPhoto[]
+  savedMeals  SavedMeal[]
+
+  financeProfile FinanceProfile?
+  expenses       Expense[]
+  subscriptions  Subscription[]
+  savingsGoals   SavingsGoal[]
+  investments    Investment[]
+
+  careerGoals    CareerGoal[]
+  skills         UserSkill[]
+  certifications Certification[]
+  projects       Project[]
+  placement      PlacementStatus?
+  roadmapItems   RoadmapItem[]
+
+  snapshots     PulseSnapshot[]
+  weeklyReviews WeeklyReview[]
+  achievements  Achievement[]
+
+  notifications     Notification[]
+  reminderRules     ReminderRule[]
+  notificationPrefs NotificationPrefs?
+
+  consentLog AiConsentLog[]
+  messages   TwinMessage[]
+
+  suggestions        TwinSuggestion[]
+  appliedActions     AppliedAction[]
+  suggestionFeedback SuggestionFeedback[]
+
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  /// Argon2 hash for the credentials provider. Never a plaintext password.
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime? @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+/// Better Auth's rate-limit counters. Kept in the database rather than in
+/// memory so the limit on sign-in and password-reset attempts still holds when
+/// more than one instance is serving requests.
+model RateLimit {
+  id          String @id
+  key         String @unique
+  count       Int
+  lastRequest BigInt
+
+  @@map("rate_limit")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Profile
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+enum LifeStage {
+  SCHOOL
+  COLLEGE
+  OTHER
+}
+
+enum RegreterTone {
+  GENTLE
+  BALANCED
+  DIRECT
+  NO_MERCY
+}
+
+enum Sex {
+  FEMALE
+  MALE
+  PREFER_NOT_TO_SAY
+}
+
+/// Who the user is, and the switches that change how the twin behaves.
+model Profile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Captured before the account exists, as the age gate. Never optional:
+  /// several safety rules (no weight-loss targets under 20, BMI-for-age
+  /// rather than adult BMI) depend on knowing it.
+  dob DateTime
+
+  /// Only collected because BMI-for-age percentiles need it under 20.
+  sex       Sex?
+  lifeStage LifeStage?
+
+  /// Slug of the furthest step reached, so the wizard resumes where it left.
+  onboardingStep        String    @default("about-you")
+  onboardingCompletedAt DateTime?
+
+  regreterTone RegreterTone @default(BALANCED)
+
+  /// Stated preferences and habits from onboarding and Settings: chronotype,
+  /// study block length, gym days, diet type, allergies, motivation style.
+  /// Read by the twin through the getUserTraits tool, never dumped into a
+  /// prompt wholesale.
+  traits Json @default("{}")
+
+  /// Shows the "talk to a doctor" note and suppresses targets.
+  hasMedicalCondition Boolean @default(false)
+
+  /// AI consent. Absent `aiConsentAt`, the twin asks before its first call.
+  aiConsentAt         DateTime?
+  allowHealthDataToAi Boolean   @default(false)
+  allowMoneyDataToAi  Boolean   @default(false)
+
+  /// Jarvis preferences.
+  jarvisShortcut      String  @default("mod+j")
+  wakePhraseEnabled   Boolean @default(false)
+  voiceRepliesEnabled Boolean @default(false)
+
+  /// Reminder guardrails live on NotificationPrefs, which is the single
+  /// source of truth for quiet hours, the daily cap and the email switch.
+  /// Keeping a second copy here would let the two drift apart silently.
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("profile")
+}
+
+/**
+ * --------------------------------------------------------------------------
+ */
+/**
+ * Domain
+ */
+/**
+ * --------------------------------------------------------------------------
+ */
+
+/// Mirrors the `Domain` union in src/lib/domain/types.ts.
+enum LifeDomain {
+  ACADEMIC
+  PRODUCTIVITY
+  HEALTH
+  NUTRITION
+  FINANCE
+  CAREER
+  GOALS
+  ROUTINE
+}
+
+enum Flexibility {
+  FIXED
+  SHIFTABLE
+  FLEXIBLE
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  NORMAL
+  LOW
+}
+
+model Subject {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name       String
+  code       String?
+  credits    Int     @default(3)
+  /// 1–5, the user's own rating. Feeds task ranking, not a grade prediction.
+  difficulty Int     @default(3)
+  importance Int     @default(3)
+
+  /// Attendance is kept as a running count as well as a log, so the bunk
+  /// budget can be answered without reading every record.
+  classesHeld      Int @default(0)
+  classesAttended  Int @default(0)
+  minAttendancePct Int @default(75)
+
+  attendance AttendanceRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("subject")
+}
+
+model AttendanceRecord {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subjectId String
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  date    DateTime @db.Date
+  present Boolean
+
+  createdAt DateTime @default(now())
+
+  @@unique([subjectId, date])
+  @@index([userId, date])
+  @@map("attendance_record")
+}
+
+/// Classes, assignments, workouts, study sessions and personal blocks are all
+/// Commitments. One scheduling model is what lets the twin reason about time
+/// across domains instead of becoming sixteen separate apps.
+model Commitment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  domain      LifeDomain
+  minutes     Int
+  start       DateTime?
+  flexibility Flexibility @default(FLEXIBLE)
+  priority    Priority    @default(NORMAL)
+  /// Commitment ids that must happen first.
+  dependsOn   String[]
+  /// Why this exists, shown to the user. Never inferred silently.
+  source      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, start])
+  @@map("commitment")
+}
+
+model Task {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title           String
+  domain          LifeDomain
+  due             DateTime?
+  estimateMinutes Int        @default(30)
+  progress        Int        @default(0)
+  priority        Priority   @default(NORMAL)
+  /// The ranking explanation. A ranked task always answers "Why is this here?".
+  why             String?
+  done            Boolean    @default(false)
+  completedAt     DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, done, due])
+  @@map("task")
+}
+
+model Goal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  domain      LifeDomain
+  targetDate  DateTime?
+  progress    Int        @default(0)
+  /// Hours a week this goal asks for. Feeds the goal conflict detector.
+  weeklyHours Float      @default(0)
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("goal")
+}
+
+model Habit {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String
+  /// Target repetitions per week.
+  timesPerWeek Int        @default(7)
+  domain       LifeDomain @default(ROUTINE)
+
+  logs HabitLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("habit")
+}
+
+model HabitLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  habitId String
+  habit   Habit  @relation(fields: [habitId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+  done Boolean  @default(true)
+
+  @@unique([habitId, date])
+  @@index([userId, date])
+  @@map("habit_log")
+}
+
+/**
+ * --------------------------------- health ---------------------------------
+ */
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHT
+  MODERATE
+  ACTIVE
+  VERY_ACTIVE
+}
+
+/// The measurements the health calculations need, kept apart from Profile
+/// because they change over time while Profile holds identity.
+///
+/// `sex`, `dob` and `hasMedicalCondition` are deliberately NOT duplicated
+/// here: they live on Profile, where the age gate wrote them, and every safety
+/// rule reads them from there. Two copies of an age is how a rule that depends
+/// on it gets silently bypassed.
+model HealthProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  heightCm       Float?
+  activityLevel  ActivityLevel @default(LIGHT)
+  /// Sessions a week the user says they intend to train. Consistency is
+  /// measured against this, which is their own number rather than a default.
+  plannedPerWeek Int           @default(3)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("health_profile")
+}
+
+/// One visit to the gym. Sets hang off it rather than being JSON on it,
+/// because personal records and per-exercise volume are genuine queries.
+model WorkoutSession {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date  DateTime @db.Date
+  notes String?
+
+  sets WorkoutSet[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@map("workout_session")
+}
+
+model WorkoutSet {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sessionId String
+  session   WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  exercise String
+  /// Position within the session, so "repeat last set" is well defined.
+  setIndex Int
+  reps     Int
+  weightKg Float  @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, exercise])
+  @@index([sessionId])
+  @@map("workout_set")
+}
+
+model WeightLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date     DateTime @db.Date
+  weightKg Float
+  heightCm Float?
+
+  @@unique([userId, date])
+  @@map("weight_log")
+}
+
+model SleepLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date    DateTime @db.Date
+  /// Minutes, so no float rounding on "7h 20m".
+  minutes Int
+  quality Int?
+
+  @@unique([userId, date])
+  @@map("sleep_log")
+}
+
+model WaterLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+  ml   Int
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@map("water_log")
+}
+
+model MoodCheckin {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date   DateTime @db.Date
+  /// 1–5, from the five-face picker. Never used to drive the twin's state.
+  mood   Int
+  energy Int
+
+  @@unique([userId, date])
+  @@map("mood_checkin")
+}
+
+/**
+ * -------------------------------- nutrition -------------------------------
+ */
+
+enum DietType {
+  VEGETARIAN
+  EGGETARIAN
+  NON_VEGETARIAN
+  VEGAN
+  JAIN
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  SNACK
+  DINNER
+}
+
+/// The food table. Global rather than per-user: it is reference data, seeded
+/// from IFCT 2017, and `source` records where each row's numbers came from so
+/// the UI can mark an estimate as an estimate instead of implying a lab value.
+model Food {
+  id String @id @default(cuid())
+
+  name    String   @unique
+  /// Alternate spellings and regional names, matched by the meal parser.
+  aliases String[]
+
+  servingLabel String
+  servingGrams Float
+
+  kcal     Float
+  proteinG Float
+  carbsG   Float
+  fatG     Float
+  fibreG   Float @default(0)
+
+  /// "IFCT 2017", another cited table, or the literal "estimate". Never empty.
+  source String
+
+  items      MealItem[]
+  savedItems SavedMealItem[]
+
+  createdAt DateTime @default(now())
+
+  @@index([name])
+  @@map("food")
+}
+
+model DietProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  dietType  DietType @default(VEGETARIAN)
+  /// Free-text allergens. A meal matching one of these cannot save until the
+  /// user has explicitly confirmed past the warning.
+  allergies String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("diet_profile")
+}
+
+model MealLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date     DateTime @db.Date
+  mealType MealType @default(SNACK)
+
+  items  MealItem[]
+  photos MealPhoto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@map("meal_log")
+}
+
+/// One food in one meal. Macros are copied onto the row rather than read
+/// through `foodId` at display time: the food table can be corrected later,
+/// and a past day's log must not change retroactively underneath the user.
+model MealItem {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  mealLogId String
+  mealLog   MealLog @relation(fields: [mealLogId], references: [id], onDelete: Cascade)
+
+  /// Null when the parser could not match the text to the food table.
+  foodId String?
+  food   Food?   @relation(fields: [foodId], references: [id], onDelete: SetNull)
+
+  /// What the user typed, kept verbatim so an unmatched item stays legible.
+  label    String
+  quantity Float  @default(1)
+
+  kcal     Float @default(0)
+  proteinG Float @default(0)
+  carbsG   Float @default(0)
+  fatG     Float @default(0)
+
+  /// True when the numbers are a guess rather than a table match. Drives the
+  /// "Couldn't match — add details" row.
+  isEstimate Boolean @default(false)
+
+  /// Where these numbers came from. Photo-derived rows are always estimates,
+  /// and the UI labels them as such for as long as they exist — the provider
+  /// is recorded so a later correction to one model's output can be found.
+  source MealItemSource @default(MANUAL)
+
+  /// Set when this row was produced by analysing a photo, so a user editing a
+  /// detected item can still see the picture it came from.
+  mealPhotoId String?
+  mealPhoto   MealPhoto? @relation(fields: [mealPhotoId], references: [id], onDelete: SetNull)
+
+  @@index([mealLogId])
+  @@index([userId])
+  @@index([mealPhotoId])
+  @@map("meal_item")
+}
+
+/// How a meal item's numbers were arrived at.
+enum MealItemSource {
+  /// Typed by the user, or matched against the food table.
+  MANUAL
+  FOOD_TABLE
+  /// Estimated from a photo by a vision model. Always an estimate.
+  PHOTO_GEMINI
+  PHOTO_LOGMEAL
+}
+
+/// A meal photo and what the vision model made of it.
+///
+/// A photo is uploaded and analysed BEFORE anything is written to the log:
+/// the user has to confirm the detected rows first. So `mealLogId` is null
+/// until that confirmation happens, and a photo that is never confirmed stays
+/// an orphan row pointing at an uploaded object — which is what lets an
+/// abandoned upload be swept up later.
+model MealPhoto {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Null until the user confirms the detected items into a log.
+  mealLogId String?
+  mealLog   MealLog? @relation(fields: [mealLogId], references: [id], onDelete: SetNull)
+
+  /// Object path inside the private `meal-photos` bucket, always
+  /// `{userId}/{id}.jpg`. The bucket has no anon/authenticated policy: every
+  /// read is a server-signed URL, so the path alone grants nothing.
+  storagePath String
+
+  status MealPhotoStatus @default(PENDING)
+
+  /// Raw provider response, kept verbatim. Stored so an estimate can be
+  /// explained back to the user and so a provider's output can be re-read if
+  /// the parsing changes — never trusted as display text without validation.
+  detectedJson Json?
+
+  /// Which provider produced `detectedJson`, and why it failed if it did.
+  source      MealItemSource?
+  failureNote String?
+
+  items MealItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([mealLogId])
+  @@map("meal_photo")
+}
+
+enum MealPhotoStatus {
+  /// Row created, object not uploaded yet.
+  PENDING
+  /// Uploaded, waiting on the vision provider.
+  ANALYZING
+  /// Analysed; `detectedJson` holds items awaiting the user's confirmation.
+  READY
+  /// The user accepted (possibly edited) the rows into a meal log.
+  CONFIRMED
+  /// Provider error, or nothing recognisable. The user falls back to typing.
+  FAILED
+}
+
+model SavedMeal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name  String
+  items SavedMealItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("saved_meal")
+}
+
+model SavedMealItem {
+  id String @id @default(cuid())
+
+  savedMealId String
+  savedMeal   SavedMeal @relation(fields: [savedMealId], references: [id], onDelete: Cascade)
+
+  foodId String?
+  food   Food?   @relation(fields: [foodId], references: [id], onDelete: SetNull)
+
+  label    String
+  quantity Float  @default(1)
+
+  kcal     Float @default(0)
+  proteinG Float @default(0)
+  carbsG   Float @default(0)
+  fatG     Float @default(0)
+
+  isEstimate Boolean @default(false)
+
+  @@index([savedMealId])
+  @@map("saved_meal_item")
+}
+
+/**
+ * --------------------------------- money ----------------------------------
+ */
+
+enum PaymentMethod {
+  CASH
+  UPI
+  CARD
+  NETBANKING
+  OTHER
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum InvestmentKind {
+  STOCK
+  MUTUAL_FUND
+  FD
+  SIP
+}
+
+/// Every amount in this section is paise held in an Int. Money is never a
+/// float: `0.1 + 0.2` is not 0.3, and a budget that is three paise out is a
+/// bug the user cannot explain.
+model FinanceProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  monthlyIncomeMinor Int    @default(0)
+  monthlyBudgetMinor Int    @default(0)
+  currency           String @default("INR")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("finance_profile")
+}
+
+model Expense {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date          DateTime      @db.Date
+  category      String
+  /// Paise, not rupees.
+  amountMinor   Int
+  note          String?
+  paymentMethod PaymentMethod @default(UPI)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, date])
+  @@index([userId, category])
+  @@map("expense")
+}
+
+/// Recurring charges. Separate from Expense because a subscription is a
+/// commitment that has not happened yet — the month-end projection adds the
+/// renewals that fall before the month ends.
+model Subscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  amountMinor Int
+  cycle       BillingCycle @default(MONTHLY)
+  nextRenewal DateTime     @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, nextRenewal])
+  @@map("subscription")
+}
+
+model SavingsGoal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  targetMinor Int
+  savedMinor  Int       @default(0)
+  deadline    DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("savings_goal")
+}
+
+model Investment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind   InvestmentKind
+  name   String
+  symbol String?
+
+  units         Float @default(0)
+  investedMinor Int   @default(0)
+  /// Entered by hand. A live price provider replaces this only when a market
+  /// data key is configured; until then the UI says prices are not connected.
+  currentMinor  Int   @default(0)
+
+  /// Fixed deposits: annual rate as a percentage, e.g. 7.1.
+  interestRate   Float?
+  /// SIPs: the instalment and the day of the month it goes out.
+  sipAmountMinor Int?
+  sipDay         Int?
+
+  startDate DateTime? @db.Date
+  asOf      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("investment")
+}
+
+/**
+ * --------------------------------- career ---------------------------------
+ */
+
+enum PlacementStage {
+  PREPARING
+  APPLYING
+  INTERVIEWING
+  OFFER
+  PLACED
+}
+
+enum ProjectStatus {
+  IDEA
+  BUILDING
+  SHIPPED
+  ARCHIVED
+}
+
+model CareerGoal {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  targetRole String
+  targetDate DateTime? @db.Date
+
+  requirements RoleSkillRequirement[]
+  roadmap      RoadmapItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("career_goal")
+}
+
+/// What the target role asks for. Pre-filled from a role template and then
+/// editable, because the template is a starting point and not an authority.
+model RoleSkillRequirement {
+  id String @id @default(cuid())
+
+  careerGoalId String
+  careerGoal   CareerGoal @relation(fields: [careerGoalId], references: [id], onDelete: Cascade)
+
+  skill         String
+  /// 1-5.
+  requiredLevel Int    @default(3)
+
+  @@unique([careerGoalId, skill])
+  @@index([careerGoalId])
+  @@map("role_skill_requirement")
+}
+
+model UserSkill {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  skill    String
+  /// 1-5, the user's own rating.
+  level    Int     @default(1)
+  /// What backs the rating up, in their words. Never inferred.
+  evidence String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, skill])
+  @@index([userId])
+  @@map("user_skill")
+}
+
+model Certification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name   String
+  issuer String?
+  date   DateTime? @db.Date
+  url    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("certification")
+}
+
+model Project {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  title       String
+  description String?
+  skills      String[]
+  url         String?
+  status      ProjectStatus @default(BUILDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("project")
+}
+
+model PlacementStatus {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  stage PlacementStage @default(PREPARING)
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("placement_status")
+}
+
+model RoadmapItem {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  careerGoalId String
+  careerGoal   CareerGoal @relation(fields: [careerGoalId], references: [id], onDelete: Cascade)
+
+  title   String
+  dueDate DateTime? @db.Date
+  done    Boolean   @default(false)
+  /// Explicit ordering, because the user drags these into the order they
+  /// intend to do them in.
+  order   Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([careerGoalId, order])
+  @@index([userId])
+  @@map("roadmap_item")
+}
+
+/**
+ * -------------------------------- insights --------------------------------
+ */
+
+/// One row per user per day, written by the snapshot job. This is the only
+/// table in the schema that stores a derived number, and it exists because a
+/// trend cannot be recomputed from the past once the past has gone: today's
+/// pulse is only knowable today.
+model PulseSnapshot {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  date DateTime @db.Date
+
+  academic     Int
+  fitness      Int
+  productivity Int
+  career       Int
+  routine      Int
+  momentum     Int
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("pulse_snapshot")
+}
+
+model WeeklyReview {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  weekStart DateTime @db.Date
+
+  wentWell  String[]
+  slipped   String[]
+  nextFocus String[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, weekStart])
+  @@index([userId, weekStart])
+  @@map("weekly_review")
+}
+
+/// Milestones that mean something, unlocked once. No streaks that reset, and
+/// nothing that compares the user with anybody else.
+model Achievement {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  key        String
+  unlockedAt DateTime @default(now())
+
+  @@unique([userId, key])
+  @@index([userId])
+  @@map("achievement")
+}
+
+/**
+ * -------------------------------- reminders -------------------------------
+ */
+
+enum ReminderKind {
+  DEADLINE
+  ATTENDANCE
+  WORKOUT
+  WATER
+  WEEKLY_REVIEW
+  CUSTOM
+}
+
+enum ReminderChannel {
+  IN_APP
+  EMAIL
+  BOTH
+}
+
+/// Quiet hours, the daily cap and the email switch, in one place. Profile
+/// deliberately does not keep a second copy.
+model NotificationPrefs {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Hours 0-23. The range may cross midnight, which `isInQuietHours` handles.
+  quietHoursStart Int @default(22)
+  quietHoursEnd   Int @default(7)
+  /// The product sends at most this many a day. Three, not "as many as there
+  /// are things to say".
+  dailyCap        Int @default(3)
+
+  emailEnabled Boolean @default(false)
+  timezone     String  @default("Asia/Kolkata")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("notification_prefs")
+}
+
+model ReminderRule {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind        ReminderKind
+  enabled     Boolean         @default(true)
+  /// How far ahead of the thing itself to send.
+  leadMinutes Int             @default(60)
+  channel     ReminderChannel @default(IN_APP)
+  /// Only for CUSTOM rules.
+  label       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, kind, label])
+  @@index([userId])
+  @@map("reminder_rule")
+}
+
+model Notification {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind  ReminderKind @default(CUSTOM)
+  title String
+  body  String
+  link  String?
+
+  readAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notification")
+}
+
+/// The development outbox. With no Mailjet key configured the mailer writes
+/// here instead of sending, so the verification and reset flows are testable
+/// end to end without a real inbox.
+model DevEmail {
+  id String @id @default(cuid())
+
+  to      String
+  subject String
+  text    String
+  html    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([to, createdAt])
+  @@map("dev_email")
+}
+
+/**
+ * ---------------------------------- twin ----------------------------------
+ */
+
+enum MessageAuthor {
+  USER
+  TWIN
+}
+
+model TwinMessage {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Conversations are grouped so /twin can list and search them.
+  threadId String
+  author   MessageAuthor
+  text     String
+
+  /// Which of the user's own numbers the answer used.
+  sources     Json?
+  /// A plan the user may apply, edit or dismiss. Never applied by being shown.
+  proposal    Json?
+  suggestions String[]
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, threadId, createdAt])
+  @@map("twin_message")
+}
+
+/// Every request that sent the user's data to the AI provider. The user can
+/// read this back in Settings; nothing reaches a model without a row here.
+model AiConsentLog {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Which feature asked: twin_chat, jarvis, career_roadmap, …
+  feature    String
+  /// Plain-language data categories sent, as shown in the consent sheet.
+  categories String[]
+  /// What was sent, summarised — not the payload itself.
+  summary    String
+  model      String?
+  granted    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("ai_consent_log")
+}
+
+/// What a suggestion is asking to change. One value per executor, because an
+/// executor is the only thing that knows how to apply a kind safely.
+enum SuggestionKind {
+  RESCHEDULE_TASK
+  COMPLETE_TASK
+  CREATE_TASK
+  REBUILD_DAY
+  ADJUST_GOAL
+}
+
+enum SuggestionStatus {
+  /// Proposed and shown. Nothing has happened to the user's data.
+  PENDING
+  APPLIED
+  DECLINED
+  /// The underlying rows changed after it was proposed, so it can no longer
+  /// be applied truthfully.
+  SUPERSEDED
+}
+
+/// A change the twin has proposed, and the user has not yet acted on.
+///
+/// The row exists so that applying is driven by an id alone. The client sends
+/// `suggestionId` and nothing else; `params` is read from here. If the client
+/// could send params, a crafted POST would be able to apply any change at all
+/// to any row — the whole point of storing the proposal is that the thing
+/// executed is the thing the user was shown.
+model TwinSuggestion {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// The twin message that proposed it, so the card can be re-rendered.
+  messageId String?
+
+  kind      SuggestionKind
+  /// The card's title, in the twin's words.
+  summary   String
+  /// Why this helps THIS user. Shown under the summary.
+  rationale String
+
+  /// Executor input. Validated per-kind at apply time, never at display time:
+  /// the rows may have moved between proposal and acceptance.
+  params Json
+  /// Human-readable before/after pairs for the card. Never executed.
+  diff   Json
+
+  confidence Float            @default(0.5)
+  status     SuggestionStatus @default(PENDING)
+
+  applied AppliedAction?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, kind, createdAt])
+  @@map("twin_suggestion")
+}
+
+/// What was overwritten when a suggestion was applied, so it can be undone.
+///
+/// Holds the previous values rather than a description of them: an undo that
+/// has to re-derive the old state is an undo that can be wrong.
+model AppliedAction {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// One action per suggestion. The unique constraint is what makes a double
+  /// apply impossible even if two requests race past the status check.
+  suggestionId String         @unique
+  suggestion   TwinSuggestion @relation(fields: [suggestionId], references: [id], onDelete: Cascade)
+
+  kind SuggestionKind
+
+  /// Enough to restore exactly: prior due dates, starts, progress values.
+  previous Json
+
+  undoneAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@map("applied_action")
+}
+
+/// Accept and decline history, used to rank what the twin offers next.
+///
+/// Separate from the suggestion row because it outlives it: a suggestion may
+/// be deleted or superseded, but "they decline rebuild_day every time" is the
+/// durable fact worth keeping.
+model SuggestionFeedback {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind     SuggestionKind
+  accepted Boolean
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, kind, createdAt])
+  @@map("suggestion_feedback")
+}

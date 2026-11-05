@@ -23,8 +23,12 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   // The resolved theme is unknown until hydration; render a stable placeholder
-  // so the icon never flips after paint.
-  useEffect(() => setMounted(true), []);
+  // so the icon never flips after paint. The state is set from a microtask so
+  // hydration itself is not what triggers the re-render.
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const active = options.find((option) => option.value === theme) ?? options[2];
   const Icon = mounted ? active.icon : Monitor;

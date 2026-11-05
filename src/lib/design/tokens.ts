@@ -10,26 +10,42 @@ export type ThemeMode = "light" | "dark";
 
 export const palette = {
   light: {
-    background: "#faf5ff",
-    foreground: "#1e1b4b",
-    card: "#ffffff",
-    primary: "#7c3aed",
-    ai: "#0891b2",
-    muted: "#eceef9",
-    mutedForeground: "#475569",
-    border: "#ddd6fe",
+    background: "#FAFAF8",
+    foreground: "#0A0A0A",
+    surface1: "#FFFFFF",
+    surface2: "#F2F2EF",
+    border: "#E6E6E1",
+    muted: "#F2F2EF",
+    mutedForeground: "#5F5F5A",
+    accent: "#587400",
+    accentForeground: "#FFFFFF",
+    /* Particle colours for the twin: warm neutral body, accent highlights. */
+    particle: "#2E2E2B",
+    particleAccent: "#587400",
   },
   dark: {
-    background: "#0f0f23",
-    foreground: "#e2e8f0",
-    card: "#1a1830",
-    primary: "#8b5cf6",
-    ai: "#22d3ee",
-    muted: "#27273b",
-    mutedForeground: "#94a3b8",
-    border: "#302c52",
+    background: "#000000",
+    foreground: "#EDEDEA",
+    surface1: "#0B0B0B",
+    surface2: "#141414",
+    border: "#1F1F1F",
+    muted: "#141414",
+    mutedForeground: "#8A8A85",
+    accent: "#D4F25A",
+    accentForeground: "#0A0A0A",
+    particle: "#EDEDEA",
+    particleAccent: "#D4F25A",
   },
 } as const satisfies Record<ThemeMode, Record<string, string>>;
+
+/**
+ * Chart greys, darkest to lightest. The accent is reserved for the "you"
+ * series; everything a number is compared against uses these.
+ */
+export const chartGrey = {
+  light: ["#0A0A0A", "#5F5F5A", "#B4B4AE"],
+  dark: ["#EDEDEA", "#8A8A85", "#4A4A47"],
+} as const satisfies Record<ThemeMode, readonly string[]>;
 
 /** Life domains the twin reasons across. Order is the display order. */
 export const DOMAINS = [
@@ -46,48 +62,39 @@ export const DOMAINS = [
 export type Domain = (typeof DOMAINS)[number];
 
 /**
- * Data hues. Used for chart series, Twin Pulse rings and module icons —
- * never as a second brand colour and never as the only carrier of meaning.
+ * The five scores that make up Twin Pulse, in ring order. Each maps to one
+ * band on the twin figure, so tapping a ring can highlight its band.
  */
-export const domainHue: Record<Domain, Record<ThemeMode, string>> = {
-  academic: { light: "#4f46e5", dark: "#818cf8" },
-  productivity: { light: "#0d9488", dark: "#2dd4bf" },
-  health: { light: "#0891b2", dark: "#22d3ee" },
-  nutrition: { light: "#059669", dark: "#34d399" },
-  finance: { light: "#0284c7", dark: "#38bdf8" },
-  career: { light: "#d97706", dark: "#fbbf24" },
-  goals: { light: "#7c3aed", dark: "#a78bfa" },
-  routine: { light: "#64748b", dark: "#94a3b8" },
-};
+export const PULSE_DOMAINS = [
+  "academic",
+  "health",
+  "productivity",
+  "career",
+  "routine",
+] as const satisfies readonly Domain[];
 
-/** Tailwind text-colour class per domain, for component use. */
-export const domainTextClass: Record<Domain, string> = {
-  academic: "text-domain-academic",
-  productivity: "text-domain-productivity",
-  health: "text-domain-health",
-  nutrition: "text-domain-nutrition",
-  finance: "text-domain-finance",
-  career: "text-domain-career",
-  goals: "text-domain-goals",
-  routine: "text-domain-routine",
-};
+export type PulseDomain = (typeof PULSE_DOMAINS)[number];
 
 export const STATUSES = ["ok", "attention", "risk", "overdue"] as const;
 export type Status = (typeof STATUSES)[number];
 
-/** Motion durations in ms. Mirrored as CSS variables; see presets.ts for the
- *  Motion/Framer transitions built from these. */
+/** Motion durations in ms. Mirrored as CSS variables; see presets.ts. */
 export const duration = {
-  instant: 100,
-  fast: 180,
-  base: 280,
+  fast: 150,
+  base: 250,
   slow: 450,
 } as const;
 
-/** The single easing curve the product uses. */
+/** Enter easing (out-quint) — the curve the product moves on. */
 export const easeTwin = [0.22, 1, 0.36, 1] as const;
 
-/** Stagger step for list reveals, in seconds. */
-export const staggerStep = 0.06;
+/** Exit easing. Things leave faster than they arrive. */
+export const easeExit = [0.4, 0, 1, 1] as const;
 
-export const radius = { sm: 8, md: 10, lg: 12, xl: 17, "2xl": 22 } as const;
+/** The one spring, used for layout changes such as list re-ranking. */
+export const springLayout = { stiffness: 380, damping: 32 } as const;
+
+/** Stagger step for list reveals, in seconds. */
+export const staggerStep = 0.04;
+
+export const radius = { sm: 6, md: 8, lg: 12, xl: 16, pill: 999 } as const;

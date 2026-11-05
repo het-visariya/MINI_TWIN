@@ -1,92 +1,133 @@
 "use client";
 
-import { Float, MeshDistortMaterial, Points, PointMaterial } from "@react-three/drei";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { PerformanceMonitor } from "@react-three/drei";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { useTheme } from "next-themes";
-import { useMemo, useRef } from "react";
-import type { Mesh } from "three";
+import { useMemo, useRef, useState } from "react";
+import { AdditiveBlending, Color, type Points, type ShaderMaterial } from "three";
 
+import {
+  BAND_COUNT,
+  STATE_TWEEN_SECONDS,
+  buildTwinPoints,
+  twinFragmentShader,
+  twinShape,
+  twinVertexShader,
+} from "@/components/twin/twin-points";
 import { palette } from "@/lib/design/tokens";
 import type { TwinState } from "@/lib/domain/types";
 
-/**
- * Per-state shape of the twin. Energy and openness change; nothing here
- * expresses disappointment, and "stretched" is tighter rather than unhappy.
- */
-const stateShape: Record<
-  TwinState,
-  { scale: number; distort: number; speed: number; shellOpacity: number }
-> = {
-  focused: { scale: 1.05, distort: 0.18, speed: 0.6, shellOpacity: 0.55 },
-  balanced: { scale: 1, distort: 0.26, speed: 0.45, shellOpacity: 0.45 },
-  stretched: { scale: 0.94, distort: 0.38, speed: 0.75, shellOpacity: 0.65 },
-  resting: { scale: 0.88, distort: 0.14, speed: 0.22, shellOpacity: 0.3 },
-};
+const BASE_COUNT = 5200;
 
-function TwinCore({
+function TwinFigure({
   state,
   intensity,
+  count,
+  highlightBand,
   color,
-  accent,
+  accentColor,
 }: {
   state: TwinState;
   intensity: number;
+  count: number;
+  highlightBand: number;
   color: string;
-  accent: string;
+  accentColor: string;
 }) {
-  const mesh = useRef<Mesh>(null);
-  const shape = stateShape[state];
+  const points = useRef<Points>(null);
+  const dpr = useThree((state) => state.viewport.dpr);
 
-  useFrame((_, delta) => {
-    if (!mesh.current) return;
-    // One slow drift. Nothing spins for attention.
-    mesh.current.rotation.y += delta * 0.12 * shape.speed;
-    mesh.current.rotation.x += delta * 0.04 * shape.speed;
+  const geometry = useMemo(() => buildTwinPoints(count), [count]);
+
+  const uniforms = useMemo(
+    () => ({
+      uTime: { value: 0 },
+      uSpread: { value: twinShape[state].spread },
+      uEdgePull: { value: twinShape[state].edgePull },
+      uDrift: { value: twinShape[state].drift },
+      uBreath: { value: twinShape[state].breath },
+      uBreathHz: { value: twinShape[state].breathHz },
+      uAccentShare: { value: twinShape[state].accentShare },
+      uOpacity: { value: twinShape[state].opacity },
+      uSize: { value: 2.1 },
+      uHighlightBand: { value: -1 },
+      uPixelRatio: { value: 1 },
+      uCameraDistance: { value: 1 },
+      uColor: { value: new Color(color) },
+      uAccentColor: { value: new Color(accentColor) },
+    }),
+    // Built once; every value below is driven imperatively in useFrame.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  useFrame((frameState, delta) => {
+    const material = points.current?.material as ShaderMaterial | undefined;
+    if (!material) return;
+
+    const target = twinShape[state];
+    /* Uniforms tween rather than snap, so a state change is a transition the
+       user can watch — 1.2s, per the design spec. */
+    const k = Math.min(1, delta / STATE_TWEEN_SECONDS);
+    const u = material.uniforms;
+
+    u.uTime.value += delta;
+    u.uSpread.value += (target.spread - u.uSpread.value) * k;
+    u.uEdgePull.value += (target.edgePull - u.uEdgePull.value) * k;
+    u.uDrift.value += (target.drift * (0.6 + intensity * 0.8) - u.uDrift.value) * k;
+    u.uBreath.value += (target.breath - u.uBreath.value) * k;
+    u.uBreathHz.value += (target.breathHz - u.uBreathHz.value) * k;
+    u.uAccentShare.value += (target.accentShare - u.uAccentShare.value) * k;
+    u.uOpacity.value += (target.opacity - u.uOpacity.value) * k;
+    u.uHighlightBand.value = highlightBand;
+
+    /* Theme and device pixel ratio are read here rather than in an effect:
+       the uniform object belongs to the renderer, not to React's render. */
+    u.uColor.value.set(color);
+    u.uAccentColor.value.set(accentColor);
+    u.uPixelRatio.value = Math.min(dpr, 1.75);
+
+    /* Read from the live camera rather than hard-coded alongside it, so moving
+       the camera cannot silently rescale every point. */
+    u.uCameraDistance.value = frameState.camera.position.length();
+
+    /* Pointer parallax, capped at 4° so it never becomes a toy. */
+    if (points.current) {
+      const maxTilt = (4 * Math.PI) / 180;
+      const { x, y } = frameState.pointer;
+      points.current.rotation.y += (x * maxTilt - points.current.rotation.y) * 0.05;
+      points.current.rotation.x += (-y * maxTilt - points.current.rotation.x) * 0.05;
+    }
   });
 
-  const shell = useMemo(() => {
-    const count = 420;
-    const positions = new Float32Array(count * 3);
-    for (let i = 0; i < count; i += 1) {
-      // Even-ish distribution on a sphere, so the shell never clumps.
-      const phi = Math.acos(1 - (2 * (i + 0.5)) / count);
-      const theta = Math.PI * (1 + Math.sqrt(5)) * (i + 0.5);
-      const radius = 1.55;
-      positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
-      positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      positions[i * 3 + 2] = radius * Math.cos(phi);
-    }
-    return positions;
-  }, []);
-
   return (
-    <group scale={shape.scale}>
-      <Float speed={shape.speed} rotationIntensity={0.15} floatIntensity={0.35}>
-        <mesh ref={mesh}>
-          <icosahedronGeometry args={[1, 24]} />
-          <MeshDistortMaterial
-            color={color}
-            distort={shape.distort * (0.6 + intensity * 0.6)}
-            speed={shape.speed * 1.4}
-            roughness={0.32}
-            metalness={0.15}
-            emissive={accent}
-            emissiveIntensity={0.18 + intensity * 0.22}
-          />
-        </mesh>
-      </Float>
-
-      <Points positions={shell} stride={3}>
-        <PointMaterial
-          transparent
-          color={accent}
-          size={0.022}
-          sizeAttenuation
-          depthWrite={false}
-          opacity={shape.shellOpacity * (0.5 + intensity * 0.5)}
+    <points ref={points} key={count}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          args={[geometry.position, 3]}
+          count={geometry.count}
         />
-      </Points>
-    </group>
+        <bufferAttribute
+          attach="attributes-aSeed"
+          args={[geometry.seed, 1]}
+          count={geometry.count}
+        />
+        <bufferAttribute
+          attach="attributes-aBand"
+          args={[geometry.band, 1]}
+          count={geometry.count}
+        />
+      </bufferGeometry>
+      <shaderMaterial
+        uniforms={uniforms}
+        vertexShader={twinVertexShader}
+        fragmentShader={twinFragmentShader}
+        transparent
+        depthWrite={false}
+        blending={AdditiveBlending}
+      />
+    </points>
   );
 }
 
@@ -94,30 +135,47 @@ export default function TwinScene({
   state,
   intensity,
   active,
+  /** Twin Pulse ring index 0–4 to highlight, or -1 for none. */
+  highlightBand = -1,
+  onSelect,
 }: {
   state: TwinState;
   intensity: number;
   /** When false the frame loop stops — offscreen, hidden tab, or paused. */
   active: boolean;
+  highlightBand?: number;
+  /** Clicking the twin summons Jarvis. */
+  onSelect?: () => void;
 }) {
   const { resolvedTheme } = useTheme();
   const colors = resolvedTheme === "light" ? palette.light : palette.dark;
 
+  /* PerformanceMonitor drops the particle count on slow devices rather than
+     dropping frames. 5,200 → 3,200 → 1,800. */
+  const [tier, setTier] = useState(0);
+  const count = [BASE_COUNT, 3200, 1800][Math.min(tier, 2)];
+
   return (
     <Canvas
-      dpr={[1, 1.5]}
-      frameloop={active ? "always" : "never"}
-      camera={{ position: [0, 0, 4.2], fov: 42 }}
-      gl={{ antialias: true, alpha: true, powerPreference: "low-power" }}
+      dpr={[1, 1.75]}
+      frameloop={active ? "always" : "demand"}
+      camera={{ position: [0, 0, 3.4], fov: 42 }}
+      gl={{ antialias: false, alpha: true, powerPreference: "low-power" }}
+      onClick={onSelect}
+      /* Explicitly transparent: the twin always sits on the page's own
+         background, never on a surface of its own. */
+      style={{ background: "transparent", ...(onSelect && { cursor: "pointer" }) }}
     >
-      <ambientLight intensity={0.6} />
-      <directionalLight position={[3, 4, 5]} intensity={1.1} color={colors.primary} />
-      <directionalLight position={[-4, -2, -3]} intensity={0.5} color={colors.ai} />
-      <TwinCore
+      <PerformanceMonitor
+        onDecline={() => setTier((current) => Math.min(2, current + 1))}
+      />
+      <TwinFigure
         state={state}
         intensity={intensity}
-        color={colors.primary}
-        accent={colors.ai}
+        count={count}
+        highlightBand={Math.min(highlightBand, BAND_COUNT - 1)}
+        color={colors.particle}
+        accentColor={colors.particleAccent}
       />
     </Canvas>
   );

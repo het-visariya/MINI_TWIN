@@ -9,13 +9,13 @@ import { FocusTimer } from "@/components/productivity/focus-timer";
 import { TaskRow } from "@/components/productivity/task-row";
 import { Progress } from "@/components/ui/progress";
 import { GridSkeleton } from "@/components/patterns/states";
-import { repo } from "@/lib/data/repo";
+import { getRepo } from "@/lib/data/repo";
 
 export const metadata: Metadata = { title: "Productivity" };
 
 async function ProductivityContent() {
   const { tasks, habits, heatmap, consistency, baseline } =
-    await repo.getProductivity();
+    await (await getRepo()).getProductivity();
 
   return (
     <div className="space-y-6">
@@ -28,7 +28,7 @@ async function ProductivityContent() {
       <div className="grid gap-6 lg:grid-cols-[1fr_20rem]">
         <section aria-labelledby="tasks-heading" className="space-y-3">
           <div>
-            <h2 id="tasks-heading" className="text-base font-semibold">
+            <h2 id="tasks-heading" className="text-base font-medium">
               Ranked by consequence
             </h2>
             <p className="text-muted-foreground text-xs">
@@ -58,7 +58,7 @@ async function ProductivityContent() {
           aria-labelledby="heatmap-heading"
           className="bg-card shadow-card rounded-xl border p-4"
         >
-          <h2 id="heatmap-heading" className="text-base font-semibold">
+          <h2 id="heatmap-heading" className="text-base font-medium">
             Life heatmap
           </h2>
           <p className="text-muted-foreground mt-1 mb-4 text-xs">
@@ -72,7 +72,7 @@ async function ProductivityContent() {
           aria-labelledby="habits-heading"
           className="bg-card shadow-card rounded-xl border p-4"
         >
-          <h2 id="habits-heading" className="text-base font-semibold">
+          <h2 id="habits-heading" className="text-base font-medium">
             Habits
           </h2>
           <p className="text-muted-foreground mt-1 mb-4 text-xs">

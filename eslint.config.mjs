@@ -12,6 +12,12 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Vendored React Bits components, installed through the shadcn registry.
+    // They are recoloured to our tokens but otherwise upstream code, and they
+    // predate the React Compiler lint rules. Our own wrappers around them
+    // (twin-bits.tsx, use-bits-theme.ts) are linted normally.
+    "src/components/bits/*.tsx",
+    "!src/components/bits/twin-bits.tsx",
   ]),
 ]);
 

@@ -174,12 +174,27 @@ export type DataUse = {
   detail: string;
 };
 
+/**
+ * A change the twin has proposed.
+ *
+ * `id` is a real `TwinSuggestion` row id, not a client-generated one. That is
+ * the whole mechanism: Apply sends this id and nothing else, and the server
+ * reads the executable params from that row — so what runs is what the user
+ * was shown, and a crafted request cannot substitute different params.
+ */
 export type PlanProposal = {
   id: string;
   summary: string;
-  changes: { label: string; detail: string }[];
-  /** The user accepts, edits or declines. Nothing is applied without that. */
-  status: "proposed" | "accepted" | "declined";
+  /** Why this helps *this* user, in their own numbers. */
+  rationale?: string;
+  /** Before/after lines for the card. Display only; never executed. */
+  diff?: { label: string; before: string; after: string }[];
+  /** Kept for the fixtures, which predate `diff`. */
+  changes?: { label: string; detail: string }[];
+  confidence?: number;
+  status: "proposed" | "accepted" | "declined" | "superseded";
+  /** Present once applied and not yet undone. Drives the Undo affordance. */
+  appliedActionId?: string | null;
 };
 
 export type TwinMessage = {
@@ -207,3 +222,49 @@ export type CostReceipt = {
   /** One-tap recovery offer. */
   recovery: { label: string; detail: string };
 };
+
+/* ------------------------- goals, subjects, habits ------------------------ */
+
+/**
+ * Added in phase 2, when these stopped being fixture literals and became
+ * database rows. The fixtures and the Prisma mappers both conform to these,
+ * so a screen cannot tell which one it is rendering.
+ */
+
+export type Goal = {
+  id: string;
+  title: string;
+  domain: Domain;
+  /** 0–100. */
+  progress: number;
+  due?: Timestamp;
+  /** Hours a week this goal asks for. Feeds the goal conflict detector. */
+  needsHoursPerWeek: number;
+  notes?: string;
+};
+
+export type SubjectDifficulty = "low" | "medium" | "high";
+
+export type Subject = {
+  id: string;
+  name: string;
+  code?: string;
+  credits: number;
+  difficulty: SubjectDifficulty;
+  /** Attendance is the input to the bunk budget, so it is never optional. */
+  attendance: { attended: number; held: number; required: number };
+  /** Absent until the user records marks. Never estimated on their behalf. */
+  grade?: { expected: string; internal: number; internalMax: number };
+};
+
+export type Habit = {
+  id: string;
+  label: string;
+  /** Days completed out of the last 28 — compared only with the user's past. */
+  days28: number;
+  domain: Domain;
+};
+
+export type HeatmapRow = { domain: Domain; label: string; values: number[] };
+
+export type Heatmap = { days: string[]; rows: HeatmapRow[] };

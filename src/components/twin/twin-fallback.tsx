@@ -1,21 +1,27 @@
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
+import { buildTwinPoints } from "@/components/twin/twin-points";
 import type { TwinState } from "@/lib/domain/types";
 
-const stateRing: Record<TwinState, { outer: number; inner: number }> = {
-  focused: { outer: 0.9, inner: 0.52 },
-  balanced: { outer: 0.82, inner: 0.46 },
-  stretched: { outer: 0.74, inner: 0.4 },
-  resting: { outer: 0.66, inner: 0.34 },
-};
+const stateShape: Record<TwinState, { spread: number; accent: number; opacity: number }> =
+  {
+    focused: { spread: 0.92, accent: 0.12, opacity: 1 },
+    balanced: { spread: 1, accent: 0.1, opacity: 0.95 },
+    stretched: { spread: 1.06, accent: 0.22, opacity: 1 },
+    resting: { spread: 0.86, accent: 0.08, opacity: 0.68 },
+  };
+
+/** Enough points to read as the same figure, few enough to stay cheap as DOM. */
+const FALLBACK_COUNT = 420;
 
 /**
- * The twin as static SVG. Shares the geometry of the 3D version so switching
- * between them is not a change of identity.
+ * The twin as static SVG, built from the same point sampler as the canvas, so
+ * switching between them is not a change of identity.
  *
  * This replaces the canvas — it is not a dimmed version of it — whenever WebGL
  * is unavailable, the viewport is small, the connection is metered, the user
  * prefers reduced motion, or the twin animation is switched off in settings.
+ * It renders the state's end position and does not move.
  */
 export function TwinFallback({
   state = "balanced",
@@ -26,44 +32,37 @@ export function TwinFallback({
   className?: string;
   label?: string;
 }) {
-  const ring = stateRing[state];
+  const shape = stateShape[state];
+  const { position, seed } = buildTwinPoints(FALLBACK_COUNT);
 
   return (
     <svg
-      viewBox="0 0 200 200"
+      viewBox="-1.4 -1.4 2.8 2.8"
       className={cn("size-full", className)}
       role="img"
       aria-label={label ?? "Your twin"}
+      style={{ opacity: shape.opacity }}
     >
-      <defs>
-        <radialGradient id="twin-core" cx="50%" cy="45%" r="55%">
-          <stop offset="0%" stopColor="var(--primary)" stopOpacity="0.95" />
-          <stop offset="60%" stopColor="var(--primary)" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="var(--ai)" stopOpacity="0.12" />
-        </radialGradient>
-      </defs>
+      {Array.from({ length: FALLBACK_COUNT }).map((_, i) => {
+        const z = position[i * 3 + 2];
+        /* Points behind the figure are smaller and fainter — the same depth
+           cue the shader gives, without a frame loop. */
+        const depth = (z + 1) / 2;
+        const edge = Math.max(0, 1 - Math.abs(z));
+        const radius = shape.spread + edge * (shape.spread > 1 ? 0.18 : 0);
+        const isAccent = seed[i] > 1 - shape.accent;
 
-      <circle cx="100" cy="100" r={92 * ring.outer} fill="url(#twin-core)" />
-      <circle
-        cx="100"
-        cy="100"
-        r={92 * ring.outer}
-        fill="none"
-        stroke="var(--primary)"
-        strokeOpacity="0.35"
-        strokeWidth="1"
-      />
-      <circle
-        cx="100"
-        cy="100"
-        r={92 * ring.inner}
-        fill="none"
-        stroke="var(--ai)"
-        strokeOpacity="0.5"
-        strokeWidth="1.5"
-        strokeDasharray="4 7"
-      />
-      <circle cx="100" cy="100" r={92 * ring.inner * 0.45} fill="var(--primary)" fillOpacity="0.5" />
+        return (
+          <circle
+            key={i}
+            cx={position[i * 3] * radius}
+            cy={-position[i * 3 + 1] * radius}
+            r={0.012 + depth * 0.008}
+            fill={isAccent ? "var(--accent)" : "var(--foreground)"}
+            fillOpacity={isAccent ? 0.9 : 0.25 + depth * 0.4}
+          />
+        );
+      })}
     </svg>
   );
 }

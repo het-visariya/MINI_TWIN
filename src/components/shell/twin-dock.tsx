@@ -70,7 +70,7 @@ export function TwinDock({ messages }: { messages: TwinMessage[] }) {
             aria-label="Send a message to your twin"
           >
             <Input placeholder={`Ask about ${context.toLowerCase()}…`} />
-            <Button type="submit" variant="ai" size="icon" aria-label="Send">
+            <Button type="submit" variant="primary" size="icon" aria-label="Send">
               <Send aria-hidden />
             </Button>
           </form>

@@ -9,7 +9,7 @@ import { PageHeader } from "@/components/patterns/page-header";
 import { TimeBudgetBar } from "@/components/patterns/time-budget-bar";
 import { Progress } from "@/components/ui/progress";
 import { GridSkeleton } from "@/components/patterns/states";
-import { repo } from "@/lib/data/repo";
+import { getRepo } from "@/lib/data/repo";
 
 export const metadata: Metadata = { title: "Goals & planning" };
 
@@ -21,7 +21,7 @@ const buckets = [
 
 async function GoalsContent() {
   const { goals, capacity, timeBudget, conflicts, recovery } =
-    await repo.getPlanning();
+    await (await getRepo()).getPlanning();
 
   const shortfall = capacity.requestedHours - capacity.availableHours;
 
@@ -39,7 +39,7 @@ async function GoalsContent() {
 
       <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
         <section aria-labelledby="goals-heading" className="space-y-3">
-          <h2 id="goals-heading" className="text-base font-semibold">
+          <h2 id="goals-heading" className="text-base font-medium">
             Active goals
           </h2>
 
@@ -54,10 +54,12 @@ async function GoalsContent() {
                       <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                         <span className="inline-flex items-center gap-1">
                           <CalendarClock className="size-3.5" aria-hidden />
-                          {new Date(goal.due).toLocaleDateString(undefined, {
-                            day: "numeric",
-                            month: "short",
-                          })}
+                          {goal.due
+                            ? new Date(goal.due).toLocaleDateString(undefined, {
+                                day: "numeric",
+                                month: "short",
+                              })
+                            : "No deadline"}
                         </span>
                         {goal.needsHoursPerWeek > 0 && (
                           <span className="tabular">
@@ -87,7 +89,7 @@ async function GoalsContent() {
             aria-labelledby="detector-heading"
             className="bg-card shadow-card rounded-xl border p-4"
           >
-            <h2 id="detector-heading" className="text-base font-semibold">
+            <h2 id="detector-heading" className="text-base font-medium">
               Goal conflict detector
             </h2>
             <p className="text-muted-foreground mt-1 mb-4 text-xs">
@@ -130,7 +132,7 @@ async function GoalsContent() {
             aria-labelledby="today-budget-heading"
             className="bg-card shadow-card rounded-xl border p-4"
           >
-            <h2 id="today-budget-heading" className="mb-3 text-base font-semibold">
+            <h2 id="today-budget-heading" className="mb-3 text-base font-medium">
               Today&rsquo;s time budget
             </h2>
             <TimeBudgetBar budget={timeBudget} />
@@ -142,7 +144,7 @@ async function GoalsContent() {
         aria-labelledby="recovery-heading"
         className="bg-card shadow-card rounded-xl border p-4"
       >
-        <h2 id="recovery-heading" className="text-base font-semibold">
+        <h2 id="recovery-heading" className="text-base font-medium">
           Recovery mode
         </h2>
         <p className="text-muted-foreground mt-1 text-xs">
@@ -152,7 +154,7 @@ async function GoalsContent() {
 
         <div className="mt-4 grid gap-3 md:grid-cols-3">
           {buckets.map((bucket) => (
-            <div key={bucket.key} className="bg-muted/30 rounded-lg border p-3">
+            <div key={bucket.key} className="bg-surface-2/60 rounded-lg border p-3">
               <h3 className="flex items-center gap-1.5 text-sm font-medium">
                 <bucket.icon className="size-4" aria-hidden />
                 {bucket.label}

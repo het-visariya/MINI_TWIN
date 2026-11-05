@@ -6,7 +6,7 @@ import { SimulationFrame } from "@/components/patterns/simulation-frame";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import type { ScenarioPath, Simulation } from "@/lib/domain/types";
 
 const dials = [
@@ -66,7 +66,7 @@ export function FuturePaths({ simulation }: { simulation: Simulation<ScenarioPat
                 index === 0 ? "border-ok/35" : "border-attention/35",
               )}
             >
-              <h4 className="text-sm font-semibold">{path.label}</h4>
+              <h4 className="text-sm font-medium">{path.label}</h4>
               <p className="text-muted-foreground mt-1 text-xs">{path.summary}</p>
 
               <ul className="mt-3 space-y-2.5">
