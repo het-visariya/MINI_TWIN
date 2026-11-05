@@ -1,7 +1,4 @@
-import dns from "node:dns";
-
 import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool, type PoolConfig } from "pg";
 
 import { PrismaClient } from "@/generated/prisma/client";
 
@@ -38,62 +35,6 @@ import { PrismaClient } from "@/generated/prisma/client";
  * which surfaces as an unrelated-looking signup failure. A new key cannot
  * collide with the old value, and the old one is simply left to be collected.
  */
-/**
- * A DNS lookup that keeps working when the resolver blinks.
- *
- * Diagnosed rather than guessed. Connections to the Supabase pooler failed in
- * bursts lasting minutes, surfacing as
- * `Connection terminated due to connection timeout` — which reads as "the
- * database is down". It was not: Postgres sat idle and healthy throughout,
- * and raw TCP to the pooler succeeded 5 times out of 5. What failed was the
- * name lookup:
- *
- *     DNS: FAIL ECONNREFUSED
- *     raw TCP to :5432 -> 5 ok, 0 failed
- *
- * The local resolver was refusing queries. With no address there is nothing
- * to connect to, so every query in that window failed, and an app that looks
- * broken for two minutes at a time is indistinguishable from one that is.
- *
- * So the last good address for a host is remembered and used when resolution
- * fails. This cannot mask a genuinely moved endpoint for long — the entry
- * expires — and a first lookup that fails still fails, because there is
- * nothing to fall back to. It only covers the case it was built for: a host
- * that resolved a minute ago and would resolve again if asked twice.
- */
-const DNS_CACHE_MS = 5 * 60 * 1000;
-
-const dnsCache = new Map<string, { address: string; family: number; at: number }>();
-
-function cachedLookup(
-  hostname: string,
-  options: dns.LookupOneOptions,
-  callback: (err: NodeJS.ErrnoException | null, address: string, family: number) => void,
-): void {
-  dns.lookup(hostname, options, (error, address, family) => {
-    if (!error && address) {
-      dnsCache.set(hostname, { address, family, at: Date.now() });
-      callback(null, address, family);
-      return;
-    }
-
-    const cached = dnsCache.get(hostname);
-
-    if (cached && Date.now() - cached.at < DNS_CACHE_MS) {
-      console.warn(
-        `[db] DNS lookup for ${hostname} failed (${error?.code ?? "unknown"}); using the address cached ${Math.round(
-          (Date.now() - cached.at) / 1000,
-        )}s ago.`,
-      );
-
-      callback(null, cached.address, cached.family);
-      return;
-    }
-
-    callback(error, "", 0);
-  });
-}
-
 const globalForPrisma = globalThis as unknown as {
   prismaCache?: { client: PrismaClient; connectionString: string };
 };
@@ -123,40 +64,43 @@ export function getPrisma(): PrismaClient {
   }
 
   /*
-   * The pool is constructed here rather than left to PrismaPg's config
-   * overload, because `lookup` is a pg option the adapter's own types do not
-   * surface. PrismaPg accepts a ready-made Pool, which is the supported way
-   * to reach the rest of pg's configuration.
+   * The connection options go to PrismaPg, not to a Pool built here.
+   *
+   * An earlier revision constructed the Pool by hand in order to pass pg's
+   * `lookup` option (a DNS cache, for a resolver that refuses queries in
+   * bursts). That silently dropped the TLS configuration PrismaPg derives
+   * from the connection string, and Supabase's pooler requires TLS -- so
+   * every query failed as "Connection terminated due to connection timeout",
+   * the same sentence the DNS outage produces, which is what made the two
+   * hard to tell apart. The cache also never once fired in testing.
+   *
+   * A resolver that refuses queries is a machine-level problem and wants a
+   * machine-level fix (point the interface at 1.1.1.1 or 8.8.8.8). Trading
+   * away transport security to paper over it is not a trade worth making.
    */
-  /*
-   * `lookup` is passed straight through to net.connect by pg, but it is
-   * declared on ClientConfig and not on PoolConfig — a gap in the typings
-   * rather than in the behaviour. Widened here, narrowly, so the rest of the
-   * object keeps its types.
-   */
-  const poolConfig: PoolConfig & { lookup?: typeof cachedLookup } = {
-    connectionString,
+  const client = new PrismaClient({
+    adapter: new PrismaPg({
+      connectionString,
 
-    /* Sized against this app's widest fan-out -- see the note above. */
-    max: 10,
+      /* Sized against this app's widest fan-out: several screens gather their
+         data with one Promise.all of around nine queries, and a pool smaller
+         than the fan-out queues until connectionTimeoutMillis expires. A
+         too-small pool surfaces as duplicate rows, because a server action
+         that hangs invites the user to press the button again. */
+      max: 10,
 
-    /* Retire idle sockets before the pooler does, and keep live ones alive.
-       Supavisor closes connections it considers idle; our pool does not find
-       out, and hands the next request a socket the far end has already shut,
-       which surfaces as "Connection terminated unexpectedly". */
-    idleTimeoutMillis: 10_000,
-    keepAlive: true,
-    keepAliveInitialDelayMillis: 5_000,
+      /* Retire idle sockets before the pooler does, and keep live ones alive.
+         Supavisor closes connections it considers idle; without this the pool
+         hands the next request a socket the far end has already shut. */
+      idleTimeoutMillis: 10_000,
+      keepAlive: true,
+      keepAliveInitialDelayMillis: 5_000,
 
-    /* Long enough to ride out a brief burst, short enough that a genuinely
-       exhausted pool says so instead of hanging the request. */
-    connectionTimeoutMillis: 10_000,
-
-    /* Survives a resolver that intermittently refuses queries -- see above. */
-    lookup: cachedLookup,
-  };
-
-  const client = new PrismaClient({ adapter: new PrismaPg(new Pool(poolConfig)) });
+      /* Long enough to ride out a brief burst, short enough that a genuinely
+         exhausted pool says so instead of hanging the request. */
+      connectionTimeoutMillis: 10_000,
+    }),
+  });
 
   globalForPrisma.prismaCache = { client, connectionString };
   return client;
