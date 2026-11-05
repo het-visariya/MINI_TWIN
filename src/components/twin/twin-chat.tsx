@@ -35,13 +35,23 @@ export function TwinChat({
   initialMessages,
   starters,
   initialPrompt,
-  threadId,
 }: {
   initialMessages: TwinMessage[];
   starters: string[];
   initialPrompt?: string;
-  threadId: string;
 }) {
+  /*
+   * One thread per day, computed here rather than passed in.
+   *
+   * It used to be a prop filled with `new Date()` on the server, which Next
+   * rejects during a prerender: "Route /twin: encountered the unstable value
+   * new Date()". It is only ever sent as an argument to the chat API and is
+   * never rendered, so there is nothing for hydration to mismatch — and the
+   * client's own date is the more correct one anyway, being the user's.
+   *
+   * A lazy initialiser, so it is read once on mount and not on every render.
+   */
+  const [threadId] = useState(() => new Date().toISOString().slice(0, 10));
   const [messages, setMessages] = useState<TwinMessage[]>(initialMessages);
   const [value, setValue] = useState(initialPrompt ? `About ${initialPrompt}: ` : "");
   const [pending, setPending] = useState(false);

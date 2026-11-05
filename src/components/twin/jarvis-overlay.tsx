@@ -157,9 +157,6 @@ export function JarvisOverlay({
           <TwinChat
             initialMessages={conversation}
             starters={STARTERS}
-            /* Same thread as /twin, so a conversation started in the overlay
-               continues on the page and the other way round. */
-            threadId={new Date().toISOString().slice(0, 10)}
           />
         </div>
 

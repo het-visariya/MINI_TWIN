@@ -79,10 +79,6 @@ async function Conversation({
         initialMessages={messages}
         starters={starters}
         initialPrompt={params.about}
-        /* One thread per day: a conversation that never ends becomes a
-           context window nobody can afford, and "what did I ask yesterday"
-           is a different question from "carry on". */
-        threadId={new Date().toISOString().slice(0, 10)}
       />
     </>
   );
