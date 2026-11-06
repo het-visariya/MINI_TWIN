@@ -20,8 +20,19 @@
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
-/** A whole exchange, not one request: the tool loop can take a few rounds. */
-const TIMEOUT_MS = 60_000;
+/** One model call. The whole exchange is bounded separately, below. */
+const TIMEOUT_MS = 30_000;
+
+/**
+ * The wall-clock budget for an entire answer, tool rounds included.
+ *
+ * Without this the ceiling is MAX_TOOL_ROUNDS * TIMEOUT_MS, which is minutes:
+ * a measured round trip to this model is 5-8 seconds even for one sentence,
+ * because it is a thinking model. An answer that takes two minutes has
+ * already failed in the only way the user measures, so the loop stops here
+ * and says so rather than continuing to be technically in progress.
+ */
+const TOTAL_BUDGET_MS = 45_000;
 
 /**
  * How many times the model may call tools before it has to answer.
@@ -227,8 +238,18 @@ export function geminiTwinLlm(apiKey: string, model: string): TwinLlm {
 
     async *answer({ system, history, tools, runTool, signal }) {
       const turns: LlmTurn[] = [...history];
+      const deadline = Date.now() + TOTAL_BUDGET_MS;
 
       for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
+        if (Date.now() > deadline) {
+          yield {
+            type: "text",
+            delta:
+              "\n\nThat is taking longer than it should. Ask me again, or about one thing at a time.",
+          };
+          return;
+        }
+
         const controller = new AbortController();
         const onAbort = () => controller.abort();
         signal?.addEventListener("abort", onAbort, { once: true });
@@ -254,6 +275,18 @@ export function geminiTwinLlm(apiKey: string, model: string): TwinLlm {
                      inventiveness is the failure mode, not the feature. */
                   temperature: 0.3,
                   maxOutputTokens: 1200,
+
+                  /*
+                   * Thinking off.
+                   *
+                   * Measured: the same one-sentence question costs 7.7s with
+                   * thinking and 4.6s without, and a tool round trip pays it
+                   * every time. The work here is reading numbers out of tool
+                   * results and saying them plainly -- there is no chain of
+                   * reasoning worth seconds of latency, and the user is
+                   * watching an empty box while it happens.
+                   */
+                  thinkingConfig: { thinkingBudget: 0 },
                 },
               }),
             },
