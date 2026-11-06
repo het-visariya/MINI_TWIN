@@ -20,8 +20,23 @@
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
 
-/** One model call. The whole exchange is bounded separately, below. */
-const TIMEOUT_MS = 30_000;
+/**
+ * How long to wait for the NEXT byte, not for the whole answer.
+ *
+ * An earlier revision aborted each model call after a fixed 30s. That is the
+ * wrong shape: a long answer streams for longer than that quite legitimately,
+ * and the hard cap cut one off mid-sentence —
+ *
+ *     {"type":"text","delta":"You have 13.5 hours free today..."}
+ *     {"type":"error","message":"Your twin stopped mid-answer."}
+ *
+ * which is worse than either finishing or failing cleanly. An idle timeout
+ * distinguishes the two cases a timeout actually needs to tell apart: a
+ * connection that has stalled, and one that is simply still talking. The
+ * timer is reset on every chunk, so a healthy stream is never interrupted
+ * and a dead one is still caught quickly.
+ */
+const IDLE_TIMEOUT_MS = 20_000;
 
 /**
  * The wall-clock budget for an entire answer, tool rounds included.
@@ -32,7 +47,7 @@ const TIMEOUT_MS = 30_000;
  * already failed in the only way the user measures, so the loop stops here
  * and says so rather than continuing to be technically in progress.
  */
-const TOTAL_BUDGET_MS = 45_000;
+const TOTAL_BUDGET_MS = 120_000;
 
 /**
  * How many times the model may call tools before it has to answer.
@@ -192,6 +207,8 @@ function toGeminiContents(history: LlmTurn[]): { role: string; parts: GeminiPart
 export async function* sseEvents(
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal,
+  /** Called on every chunk, so the caller can reset its idle timer. */
+  onChunk?: () => void,
 ): AsyncGenerator<unknown> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
@@ -203,6 +220,8 @@ export async function* sseEvents(
 
       const { done, value } = await reader.read();
       if (done) break;
+
+      onChunk?.();
 
       /* Normalised on arrival, so the split below only has one case to
          handle and a server that switches to bare LF keeps working. */
@@ -253,7 +272,23 @@ export function geminiTwinLlm(apiKey: string, model: string): TwinLlm {
         const controller = new AbortController();
         const onAbort = () => controller.abort();
         signal?.addEventListener("abort", onAbort, { once: true });
-        const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+        /* Logged because an idle abort is indistinguishable from a model
+           that simply said nothing, and the two want different fixes. */
+        let chunks = 0;
+        const giveUp = () => {
+          console.error(
+            `[twin-llm] no data for ${IDLE_TIMEOUT_MS}ms (round ${round}, ${chunks} chunks so far)`,
+          );
+          controller.abort();
+        };
+
+        let timer = setTimeout(giveUp, IDLE_TIMEOUT_MS);
+        const resetIdle = () => {
+          chunks += 1;
+          clearTimeout(timer);
+          timer = setTimeout(giveUp, IDLE_TIMEOUT_MS);
+        };
 
         let response: Response;
         try {
@@ -317,7 +352,7 @@ export function geminiTwinLlm(apiKey: string, model: string): TwinLlm {
         let text = "";
 
         try {
-          for await (const event of sseEvents(response.body, controller.signal)) {
+          for await (const event of sseEvents(response.body, controller.signal, resetIdle)) {
             const parts =
               (event as { candidates?: { content?: { parts?: GeminiPart[] } }[] })
                 .candidates?.[0]?.content?.parts ?? [];
